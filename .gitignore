@@ -1,0 +1,9 @@
+# editors stuff
+.idea
+.vscode
+
+# binary
+conduit-connector-neo4j
+
+# testing stuff
+*.rest
