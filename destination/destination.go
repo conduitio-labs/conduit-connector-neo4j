@@ -37,8 +37,8 @@ type Destination struct {
 	driver neo4j.DriverWithContext
 }
 
-// NewDestination creates a new instance of the [Destination].
-func NewDestination() sdk.Destination {
+// New creates a new instance of the [Destination].
+func New() sdk.Destination {
 	return sdk.DestinationWithMiddleware(&Destination{}, sdk.DefaultDestinationMiddleware()...)
 }
 

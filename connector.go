@@ -24,5 +24,5 @@ import (
 var Connector = sdk.Connector{
 	NewSpecification: Specification,
 	NewSource:        nil,
-	NewDestination:   destination.NewDestination,
+	NewDestination:   destination.New,
 }
