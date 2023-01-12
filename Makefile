@@ -10,3 +10,9 @@ test:
 
 lint:
 	golangci-lint run --config .golangci.yml
+
+mockgen:
+	mockgen -package mock -source destination/destination.go -destination destination/mock/destination.go
+
+paramgen:
+	paramgen -path=./destination -output=destination_params.go Config
