@@ -3,7 +3,7 @@ module github.com/conduitio-labs/conduit-connector-neo4j
 go 1.19
 
 require (
-	github.com/conduitio/conduit-connector-sdk v0.4.2
+	github.com/conduitio/conduit-connector-sdk v0.4.3
 	github.com/golang/mock v1.6.0
 	github.com/neo4j/neo4j-go-driver/v5 v5.4.0
 )
@@ -27,12 +27,12 @@ require (
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/goleak v1.2.0 // indirect
 	go.uber.org/multierr v1.9.0 // indirect
-	golang.org/x/exp v0.0.0-20230111222715-75897c7a292a // indirect
+	golang.org/x/exp v0.0.0-20230118134722-a68e582fa157 // indirect
 	golang.org/x/net v0.5.0 // indirect
 	golang.org/x/sys v0.4.0 // indirect
 	golang.org/x/text v0.6.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
-	google.golang.org/genproto v0.0.0-20230110181048-76db0878b65f // indirect
+	google.golang.org/genproto v0.0.0-20230117162540-28d6b9783ac4 // indirect
 	google.golang.org/grpc v1.52.0 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/tomb.v2 v2.0.0-20161208151619-d5d1b5820637 // indirect
