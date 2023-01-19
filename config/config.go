@@ -20,8 +20,10 @@ import "github.com/neo4j/neo4j-go-driver/v5/neo4j"
 const (
 	// KeyURI is a config field name for a connection URI.
 	KeyURI = "uri"
-	// KeyKeyProperties is a config field name for a key properties.
-	KeyKeyProperties = "keyProperties"
+	// KeyEntityType is a config field name for a entity type.
+	KeyEntityType = "entityType"
+	// KeyEntityLabels is a config field name for entity labels.
+	KeyEntityLabels = "entityLabels"
 	// KeyDatabase is a config field name for a database.
 	KeyDatabase = "database"
 	// KeyAuthUsername is a config field name for a basic auth username.
@@ -32,14 +34,23 @@ const (
 	KeyAuthRealm = "auth.realm"
 )
 
+// EntityType defines a Neo4j entity type.
+type EntityType string
+
+// The available entity types are listed below.
+const (
+	EntityTypeNode         = "node"
+	EntityTypeRelationship = "relationship"
+)
+
 // Config holds configurable values shared between Source and Destination.
 type Config struct {
 	// The connection URI pointed to a Neo4j instance.
 	URI string `json:"uri" validate:"required"`
-	// The comma separated list of column names to
-	// build a WHERE clause in case sdk.Record.Key is empty (destination) or
-	// build an sdk.Record.Key (source).
-	KeyProperties []string `json:"keyProperties" validate:"required"`
+	// Defines an entity type the connector should work with.
+	EntityType EntityType `json:"entityType" validate:"required,inclusion=node|relationship"`
+	// Holds a list of labels belonging to an entity.
+	EntityLabels []string `json:"entityLabels" validate:"required"`
 	// The name of a database the connector should work with.
 	Database string `json:"database" default:"neo4j"`
 	// Auth holds auth-specific configurable values.

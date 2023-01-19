@@ -33,17 +33,19 @@ func TestParseConfig(t *testing.T) {
 		{
 			name: "success",
 			raw: map[string]string{
-				KeyURI:           "http://localhost:33575",
-				KeyKeyProperties: "id,created_at",
-				KeyDatabase:      "neo4j",
-				KeyAuthUsername:  "admin",
-				KeyAuthPassword:  "secret",
-				KeyAuthRealm:     "realm",
+				KeyURI:          "http://localhost:33575",
+				KeyEntityType:   "node",
+				KeyEntityLabels: "Person,Worker",
+				KeyDatabase:     "neo4j",
+				KeyAuthUsername: "admin",
+				KeyAuthPassword: "secret",
+				KeyAuthRealm:    "realm",
 			},
 			want: Config{
-				URI:           "http://localhost:33575",
-				KeyProperties: []string{"id", "created_at"},
-				Database:      "neo4j",
+				URI:          "http://localhost:33575",
+				EntityType:   EntityTypeNode,
+				EntityLabels: []string{"Person", "Worker"},
+				Database:     "neo4j",
 				Auth: AuthConfig{
 					Username: "admin",
 					Password: "secret",

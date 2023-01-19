@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/conduitio-labs/conduit-connector-neo4j/destination/writer"
 	sdk "github.com/conduitio/conduit-connector-sdk"
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 )
@@ -68,6 +69,12 @@ func (d *Destination) Open(ctx context.Context) error {
 	}
 
 	d.driver = driver
+	d.writer = writer.New(writer.Params{
+		Driver:       d.driver,
+		DatabaseName: d.config.Database,
+		EntityType:   d.config.EntityType,
+		EntityLabels: d.config.EntityLabels,
+	})
 
 	return nil
 }

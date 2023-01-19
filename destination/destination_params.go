@@ -33,12 +33,21 @@ func (Config) Parameters() map[string]sdk.Parameter {
 			Type:        sdk.ParameterTypeString,
 			Validations: []sdk.Validation{},
 		},
-		"keyProperties": {
+		"entityLabels": {
 			Default:     "",
-			Description: "The comma separated list of column names to build a WHERE clause in case sdk.Record.Key is empty (destination) or build an sdk.Record.Key (source).",
+			Description: "Holds a list of labels belonging to an entity.",
 			Type:        sdk.ParameterTypeString,
 			Validations: []sdk.Validation{
 				sdk.ValidationRequired{},
+			},
+		},
+		"entityType": {
+			Default:     "",
+			Description: "Defines an entity type the connector should work with.",
+			Type:        sdk.ParameterTypeString,
+			Validations: []sdk.Validation{
+				sdk.ValidationRequired{},
+				sdk.ValidationInclusion{List: []string{"node", "relationship"}},
 			},
 		},
 		"uri": {
