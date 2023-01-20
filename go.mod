@@ -5,6 +5,7 @@ go 1.19
 require (
 	github.com/conduitio/conduit-connector-sdk v0.4.3
 	github.com/golang/mock v1.6.0
+	github.com/mitchellh/mapstructure v1.5.0
 	github.com/neo4j/neo4j-go-driver/v5 v5.4.0
 )
 
@@ -20,7 +21,6 @@ require (
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.17 // indirect
 	github.com/mitchellh/go-testing-interface v1.14.1 // indirect
-	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/oklog/run v1.1.0 // indirect
 	github.com/rs/zerolog v1.28.0 // indirect
 	go.buf.build/grpc/go/conduitio/conduit-connector-protocol v1.4.5 // indirect

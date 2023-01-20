@@ -18,30 +18,37 @@ package writer
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/conduitio-labs/conduit-connector-neo4j/config"
+	"github.com/conduitio-labs/conduit-connector-neo4j/schema"
 	sdk "github.com/conduitio/conduit-connector-sdk"
+	"github.com/mitchellh/mapstructure"
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 )
 
 const (
 	// all Cypher queries used by the [Writer] are listed below in the format of Go fmt.
-	createNodeQueryTemplate = "CREATE (node:%s {%s})"
-	updateNodeQueryTemplate = "MATCH (node:%s {%s}) SET %s"
-	deleteNodeQueryTemplate = "MATCH (node:%s {%s}) DELETE node"
+	createNodeQueryTemplate         = "CREATE (obj:%s {%s})"
+	updateNodeQueryTemplate         = "MATCH (obj:%s {%s}) SET %s"
+	deleteNodeQueryTemplate         = "MATCH (obj:%s {%s}) DELETE obj"
+	createRelationshipQueryTemplate = "MATCH (src:%s {%s}) MATCH (trgt:%s {%s}) CREATE (src)-[obj:%s {%s}]->(trgt)"
+	updateRelationshipQueryTemplate = "MATCH ()-[obj:%s {%s}]->() SET %s"
+	deleteRelationshipQueryTemplate = "MATCH ()-[obj:%s {%s}]->() DELETE obj"
 
 	// some helper symbols for Cypher queries.
-	setKeyPrefix      = "node."
-	setAssignSign     = "="
-	matchAssignSign   = ":"
-	interpolationSign = "$"
-)
+	setKeyPrefix              = "obj."
+	setAssignSign             = "="
+	matchAssignSign           = ":"
+	interpolationSign         = "$"
+	interpolationSourcePrefix = "src_"
+	interpolationTargetPrefix = "trgt_"
 
-// ErrEmptyRawData occurs when trying to structurize empty [sdk.RawData].
-var ErrEmptyRawData = errors.New("raw data is empty")
+	// relationship payload-specific fields.
+	sourceNodeField = "sourceNode"
+	targetNodeField = "targetNode"
+)
 
 // Writer implements a writer logic for the Neo4j Destination.
 type Writer struct {
@@ -91,25 +98,17 @@ func (w *Writer) handleCreate(ctx context.Context, record sdk.Record) error {
 	})
 	defer session.Close(ctx)
 
-	properties, err := w.structurizeRawData(record.Payload.After.Bytes())
-	if err != nil {
-		return fmt.Errorf("structurize record payload: %w", err)
+	switch w.entityType {
+	case config.EntityTypeNode:
+		return w.createNode(ctx, session, record)
+
+	case config.EntityTypeRelationship:
+		return w.createRelationship(ctx, session, record)
+
+	default:
+		// this shouldn't happen as we validate the config this value comes from
+		return ErrUnsupportedEntityType
 	}
-
-	// construct a CREATE query
-	cypherMatchProperties, err := w.cypherMatchProperties(properties)
-	if err != nil {
-		return fmt.Errorf("create cypher match properties: %w", err)
-	}
-
-	query := fmt.Sprintf(createNodeQueryTemplate, w.entityLabels, cypherMatchProperties)
-
-	// execute the CREATE query
-	if err := w.executeWriteQuery(ctx, session, query, properties); err != nil {
-		return fmt.Errorf("execute write query: %w", err)
-	}
-
-	return nil
 }
 
 func (w *Writer) handleUpdate(ctx context.Context, record sdk.Record) error {
@@ -128,17 +127,22 @@ func (w *Writer) handleUpdate(ctx context.Context, record sdk.Record) error {
 		return fmt.Errorf("structurize record payload: %w", err)
 	}
 
+	// delete reserved sourceNode and targetNode fields
+	// from the properties map, as we don't need them for updates
+	delete(properties, sourceNodeField)
+	delete(properties, targetNodeField)
+
 	// add keys to the properties map because we need them
 	// for interpolation within the executeWriteQuery method
 	// and to avoid creating a third map
-	for keyName, keyValue := range key {
-		if _, ok := properties[keyName]; !ok {
-			properties[keyName] = keyValue
+	for name, value := range key {
+		if _, ok := properties[name]; !ok {
+			properties[name] = value
 		}
 	}
 
 	// construct a MATCH SET query
-	cypherMatchProperties, err := w.cypherMatchProperties(key)
+	cypherMatchProperties, err := w.cypherMatchProperties(key, "")
 	if err != nil {
 		return fmt.Errorf("create cypher match properties: %w", err)
 	}
@@ -148,7 +152,12 @@ func (w *Writer) handleUpdate(ctx context.Context, record sdk.Record) error {
 		return fmt.Errorf("create cypher set properties: %w", err)
 	}
 
-	query := fmt.Sprintf(updateNodeQueryTemplate, w.entityLabels, cypherMatchProperties, cypherSetProperties)
+	updateQueryTemplate := updateNodeQueryTemplate
+	if w.entityType == config.EntityTypeRelationship {
+		updateQueryTemplate = updateRelationshipQueryTemplate
+	}
+
+	query := fmt.Sprintf(updateQueryTemplate, w.entityLabels, cypherMatchProperties, cypherSetProperties)
 
 	// execute the MATCH SET query
 	if err := w.executeWriteQuery(ctx, session, query, properties); err != nil {
@@ -170,12 +179,17 @@ func (w *Writer) handleDelete(ctx context.Context, record sdk.Record) error {
 	}
 
 	// construct a MATCH DELETE query
-	cypherMatchProperties, err := w.cypherMatchProperties(key)
+	cypherMatchProperties, err := w.cypherMatchProperties(key, "")
 	if err != nil {
 		return fmt.Errorf("create cypher match properties: %w", err)
 	}
 
-	query := fmt.Sprintf(deleteNodeQueryTemplate, w.entityLabels, cypherMatchProperties)
+	deleteQueryTemplate := deleteNodeQueryTemplate
+	if w.entityType == config.EntityTypeRelationship {
+		deleteQueryTemplate = deleteRelationshipQueryTemplate
+	}
+
+	query := fmt.Sprintf(deleteQueryTemplate, w.entityLabels, cypherMatchProperties)
 
 	// execute the MATCH DELETE query
 	if err := w.executeWriteQuery(ctx, session, query, key); err != nil {
@@ -183,6 +197,125 @@ func (w *Writer) handleDelete(ctx context.Context, record sdk.Record) error {
 	}
 
 	return nil
+}
+
+func (w *Writer) createNode(ctx context.Context, session neo4j.SessionWithContext, record sdk.Record) error {
+	properties, err := w.structurizeRawData(record.Payload.After.Bytes())
+	if err != nil {
+		return fmt.Errorf("structurize record payload: %w", err)
+	}
+
+	// construct a CREATE query
+	cypherMatchProperties, err := w.cypherMatchProperties(properties, "")
+	if err != nil {
+		return fmt.Errorf("create cypher match properties: %w", err)
+	}
+
+	query := fmt.Sprintf(createNodeQueryTemplate, w.entityLabels, cypherMatchProperties)
+
+	// execute the CREATE query
+	if err := w.executeWriteQuery(ctx, session, query, properties); err != nil {
+		return fmt.Errorf("execute write query: %w", err)
+	}
+
+	return nil
+}
+
+func (w *Writer) createRelationship(ctx context.Context, session neo4j.SessionWithContext, record sdk.Record) error {
+	properties, err := w.structurizeRawData(record.Payload.After.Bytes())
+	if err != nil {
+		return fmt.Errorf("structurize record payload: %w", err)
+	}
+
+	// extract source and target nodes from the properties
+	sourceNode, targetNode, err := w.sourceTargetNodesFromProperties(properties)
+	if err != nil {
+		return fmt.Errorf("extract source and target node from properties: %w", err)
+	}
+
+	// prepare source node
+	sourceNodeLabels := strings.Join(sourceNode.Labels, ":")
+	sourceNodeCypherMatchProperties, err := w.cypherMatchProperties(sourceNode.Key, interpolationSourcePrefix)
+	if err != nil {
+		return fmt.Errorf("create cypher match properties for source node: %w", err)
+	}
+
+	// prepare target node
+	targetNodeLabels := strings.Join(targetNode.Labels, ":")
+	targetNodeCypherMatchProperties, err := w.cypherMatchProperties(targetNode.Key, interpolationTargetPrefix)
+	if err != nil {
+		return fmt.Errorf("create cypher match properties for target node: %w", err)
+	}
+
+	// construct a CREATE query
+	relationshipCypherMatchProperties, err := w.cypherMatchProperties(properties, "")
+	if err != nil {
+		return fmt.Errorf("create cypher match properties for relationship: %w", err)
+	}
+
+	query := fmt.Sprintf(createRelationshipQueryTemplate,
+		sourceNodeLabels, sourceNodeCypherMatchProperties,
+		targetNodeLabels, targetNodeCypherMatchProperties,
+		w.entityLabels, relationshipCypherMatchProperties,
+	)
+
+	// add sourceNode and targetNode keys to the properties map because we need them
+	// for interpolation within the executeWriteQuery method
+	// and to avoid creating a third map
+	for name, value := range sourceNode.Key {
+		interpolatedName := interpolationSourcePrefix + name
+		if _, ok := properties[interpolatedName]; !ok {
+			properties[interpolatedName] = value
+		}
+	}
+
+	for name, value := range targetNode.Key {
+		interpolatedName := interpolationTargetPrefix + name
+		if _, ok := properties[interpolatedName]; !ok {
+			properties[interpolatedName] = value
+		}
+	}
+
+	// execute the CREATE query
+	if err := w.executeWriteQuery(ctx, session, query, properties); err != nil {
+		return fmt.Errorf("execute write query: %w", err)
+	}
+
+	return nil
+}
+
+// sourceTargetNodesFromProperties extracts source and target nodes of type [schema.Node] from the properties map.
+//
+// The method also removes sourceNode and targetNode fields from the properties after extracting
+// because we don't need them to be stored as relationship properties.
+func (w *Writer) sourceTargetNodesFromProperties(properties map[string]any) (*schema.Node, *schema.Node, error) {
+	// extract and parse sourceNode field
+	sourceNodeRaw, ok := properties[sourceNodeField]
+	if !ok {
+		return nil, nil, ErrEmptySourceNode
+	}
+
+	sourceNode := new(schema.Node)
+	if err := mapstructure.Decode(sourceNodeRaw, sourceNode); err != nil {
+		return nil, nil, fmt.Errorf("decode source node: %w", err)
+	}
+
+	delete(properties, sourceNodeField)
+
+	// extract and parse targetNode field
+	targetNodeRaw, ok := properties[targetNodeField]
+	if !ok {
+		return nil, nil, ErrEmptyTargetNode
+	}
+
+	targetNode := new(schema.Node)
+	if err := mapstructure.Decode(targetNodeRaw, targetNode); err != nil {
+		return nil, nil, fmt.Errorf("decode target node: %w", err)
+	}
+
+	delete(properties, targetNodeField)
+
+	return sourceNode, targetNode, nil
 }
 
 // structurizeRawData tries to unmarshal the [sdk.RawData]
@@ -209,9 +342,9 @@ func (w *Writer) executeWriteQuery(
 	properties map[string]any,
 ) error {
 	_, err := neo4j.ExecuteWrite(ctx, session, func(tx neo4j.ManagedTransaction) (neo4j.ResultSummary, error) {
-		result, txErr := tx.Run(ctx, query, properties)
-		if txErr != nil {
-			return nil, fmt.Errorf("run tx: %w", txErr)
+		result, err := tx.Run(ctx, query, properties)
+		if err != nil {
+			return nil, fmt.Errorf("run tx: %w", err)
 		}
 
 		summary, err := result.Consume(ctx)
@@ -230,11 +363,11 @@ func (w *Writer) executeWriteQuery(
 
 // cypherMatchProperties constructs a set of properties
 // according to the Cypher MATCH syntax, e.g.: "{prop: $prop}".
-func (w *Writer) cypherMatchProperties(properties map[string]any) (string, error) {
+func (w *Writer) cypherMatchProperties(properties map[string]any, interpolationPrefix string) (string, error) {
 	var sb strings.Builder
 	for propertyName := range properties {
 		_, err := sb.WriteString(
-			propertyName + matchAssignSign + interpolationSign + propertyName + ", ",
+			propertyName + matchAssignSign + interpolationSign + interpolationPrefix + propertyName + ", ",
 		)
 		if err != nil {
 			return "", fmt.Errorf("write string: %w", err)
