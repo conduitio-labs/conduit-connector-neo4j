@@ -39,8 +39,8 @@ type EntityType string
 
 // The available entity types are listed below.
 const (
-	EntityTypeNode         = "node"
-	EntityTypeRelationship = "relationship"
+	EntityTypeNode         EntityType = "node"
+	EntityTypeRelationship EntityType = "relationship"
 )
 
 // Config holds configurable values shared between Source and Destination.

@@ -25,7 +25,7 @@ func BenchmarkWriter_cypherMatchProperties(b *testing.B) {
 	)
 
 	for i := 0; i < b.N; i++ {
-		_, err := writer.cypherMatchProperties(properties)
+		_, err := writer.cypherMatchProperties(properties, "")
 		if err != nil {
 			b.Fatal(err)
 		}
