@@ -6,7 +6,10 @@ build:
 	go build -ldflags "-X 'github.com/conduitio-labs/conduit-connector-neo4j.version=${VERSION}'" -o conduit-connector-neo4j cmd/connector/main.go
 
 test:
-	go test $(GOTEST_FLAGS) ./...
+	docker compose -f test/docker-compose.yml up --quiet-pull -d --wait
+	go test $(GOTEST_FLAGS) ./...; ret=$$?; \
+		docker compose -f test/docker-compose.yml down --volumes; \
+		exit $$ret
 
 lint:
 	golangci-lint run --config .golangci.yml
