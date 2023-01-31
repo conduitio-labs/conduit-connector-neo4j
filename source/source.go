@@ -19,6 +19,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/conduitio-labs/conduit-connector-neo4j/source/iterator"
 	sdk "github.com/conduitio/conduit-connector-sdk"
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 )
@@ -27,7 +28,6 @@ import (
 type Iterator interface {
 	HasNext(context.Context) (bool, error)
 	Next(context.Context) (sdk.Record, error)
-	Stop(context.Context) error
 }
 
 // Source Neo4j Connector reads records from a Neo4j.
@@ -55,6 +55,12 @@ func (s *Source) Configure(ctx context.Context, raw map[string]string) error {
 		return fmt.Errorf("parse config: %w", err)
 	}
 
+	// if the keyProperties is empty,
+	// we'll use the orderingProperty as a record key
+	if len(s.config.KeyProperties) == 0 {
+		s.config.KeyProperties = []string{s.config.OrderingProperty}
+	}
+
 	return nil
 }
 
@@ -65,11 +71,25 @@ func (s *Source) Open(ctx context.Context, position sdk.Position) error {
 		return fmt.Errorf("create neo4j driver: %w", err)
 	}
 
-	if err := driver.VerifyConnectivity(ctx); err != nil {
+	if err = driver.VerifyConnectivity(ctx); err != nil {
 		return fmt.Errorf("ping neo4j instance: %w", err)
 	}
 
 	s.driver = driver
+
+	s.iterator, err = iterator.NewSnapshot(ctx, iterator.SnapshotParams{
+		Driver:           driver,
+		OrderingProperty: s.config.OrderingProperty,
+		KeyProperties:    s.config.KeyProperties,
+		EntityType:       s.config.EntityType,
+		EntityLabels:     s.config.EntityLabels,
+		BatchSize:        s.config.BatchSize,
+		DatabaseName:     s.config.Database,
+		Position:         position,
+	})
+	if err != nil {
+		return fmt.Errorf("init snapshot iterator: %w", err)
+	}
 
 	return nil
 }
@@ -104,12 +124,6 @@ func (s *Source) Ack(ctx context.Context, position sdk.Position) error {
 
 // Teardown closes connections, stops iterators and prepares for a graceful shutdown.
 func (s *Source) Teardown(ctx context.Context) error {
-	if s.iterator != nil {
-		if err := s.iterator.Stop(ctx); err != nil {
-			return fmt.Errorf("stop iterator: %w", err)
-		}
-	}
-
 	if s.driver != nil {
 		if err := s.driver.Close(ctx); err != nil {
 			return fmt.Errorf("close neo4j driver: %w", err)

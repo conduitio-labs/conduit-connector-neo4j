@@ -17,12 +17,14 @@ package source
 import "github.com/conduitio-labs/conduit-connector-neo4j/config"
 
 const (
+	// ConfigKeyOrderingProperty is a config name for a orderingProperty field.
+	ConfigKeyOrderingProperty = "orderingProperty"
+	// ConfigKeyKeyProperties is a config name for a keyProperties field.
+	ConfigKeyKeyProperties = "keyProperties"
 	// ConfigKeyBatchSize is a config name for a batch size.
 	ConfigKeyBatchSize = "batchSize"
 	// ConfigKeySnapshot is a config name for a snapshot field.
 	ConfigKeySnapshot = "snapshot"
-	// ConfigKeyOrderingProperty is a config name for a orderingProperty field.
-	ConfigKeyOrderingProperty = "orderingProperty"
 )
 
 // Config holds configurable values specific to source.
@@ -32,6 +34,8 @@ type Config struct {
 	// The name of a property that is used for ordering
 	// nodes or relationships when capturing a snapshot.
 	OrderingProperty string `json:"orderingProperty" validate:"required"`
+	// The list of property names that are used for constructing a record key.
+	KeyProperties []string `json:"keyProperties"`
 	// The size of an element batch.
 	BatchSize int `json:"batchSize" validate:"gt=0,lt=100001" default:"1000"`
 	// Determines whether or not the connector will take a snapshot

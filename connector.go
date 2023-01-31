@@ -18,11 +18,12 @@ package neo4j
 
 import (
 	"github.com/conduitio-labs/conduit-connector-neo4j/destination"
+	"github.com/conduitio-labs/conduit-connector-neo4j/source"
 	sdk "github.com/conduitio/conduit-connector-sdk"
 )
 
 var Connector = sdk.Connector{
 	NewSpecification: Specification,
-	NewSource:        nil,
+	NewSource:        source.New,
 	NewDestination:   destination.New,
 }

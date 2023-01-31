@@ -28,6 +28,10 @@ import (
 	"github.com/matryer/is"
 )
 
+// The mapstructure package that is used within the sdk.Util.ParseConfig
+// has some problems with concurrent access so we don't place the t.Parallel inside the loop.
+//
+//nolint:paralleltest,tparallel,nolintlint
 func TestSource_Configure(t *testing.T) {
 	t.Parallel()
 
@@ -77,11 +81,7 @@ func TestSource_Configure(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
-
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
 			err := s.Configure(context.Background(), tt.raw)
 			if err != nil {
 				if tt.expectedError == "" || !strings.Contains(err.Error(), tt.expectedError) {
@@ -162,38 +162,4 @@ func TestSource_Read_failNext(t *testing.T) {
 
 	_, err := s.Read(ctx)
 	is.True(err != nil)
-}
-
-func TestSource_Teardown_success(t *testing.T) {
-	t.Parallel()
-
-	is := is.New(t)
-
-	ctrl := gomock.NewController(t)
-	ctx := context.Background()
-
-	it := mock.NewMockIterator(ctrl)
-	it.EXPECT().Stop(ctx).Return(nil)
-
-	s := Source{iterator: it}
-
-	err := s.Teardown(context.Background())
-	is.NoErr(err)
-}
-
-func TestSource_Teardown_failure(t *testing.T) {
-	t.Parallel()
-
-	is := is.New(t)
-
-	ctrl := gomock.NewController(t)
-	ctx := context.Background()
-
-	it := mock.NewMockIterator(ctrl)
-	it.EXPECT().Stop(ctx).Return(errors.New("some error"))
-
-	s := Source{iterator: it}
-
-	err := s.Teardown(context.Background())
-	is.Equal(err.Error(), "stop iterator: some error")
 }
