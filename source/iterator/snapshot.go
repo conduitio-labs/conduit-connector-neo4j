@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/conduitio-labs/conduit-connector-neo4j/config"
+	"github.com/conduitio-labs/conduit-connector-neo4j/schema"
 	sdk "github.com/conduitio/conduit-connector-sdk"
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j/db"
@@ -267,8 +268,8 @@ func (s *Snapshot) processNeo4jResult(ctx context.Context, result neo4j.ResultWi
 				return errConvertRawRelationship
 			}
 
-			props[sourceNodeField] = srcNode.Props
-			props[targetNodeField] = trgtNode.Props
+			props[sourceNodeField] = schema.Node{Labels: srcNode.Labels, Key: srcNode.Props}
+			props[targetNodeField] = schema.Node{Labels: trgtNode.Labels, Key: trgtNode.Props}
 		}
 
 		s.records <- props
