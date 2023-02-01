@@ -59,6 +59,12 @@ func (Config) Parameters() map[string]sdk.Parameter {
 				sdk.ValidationInclusion{List: []string{"node", "relationship"}},
 			},
 		},
+		"keyProperties": {
+			Default:     "",
+			Description: "The list of property names that are used for constructing a record key.",
+			Type:        sdk.ParameterTypeString,
+			Validations: []sdk.Validation{},
+		},
 		"orderingProperty": {
 			Default:     "",
 			Description: "The name of a property that is used for ordering nodes or relationships when capturing a snapshot.",
