@@ -21,18 +21,18 @@ import (
 	sdk "github.com/conduitio/conduit-connector-sdk"
 )
 
-// positionMode defines the [position] mode.
-type positionMode string
+// PositionMode defines the [position] mode.
+type PositionMode string
 
 // The available position modes are listed below.
 const (
-	modeSnapshot positionMode = "snapshot"
-	modeCDC      positionMode = "cdc"
+	ModeSnapshot        PositionMode = "snapshot"
+	ModeSnapshotPolling PositionMode = "snapshot_polling"
 )
 
-// position is an iterator position.
-type position struct {
-	Mode positionMode `json:"mode"`
+// Position is an iterator position.
+type Position struct {
+	Mode PositionMode `json:"mode"`
 	// LastProcessedValue is a value of the last processed element by the snapshot capture.
 	// This value is used if the mode is snapshot.
 	LastProcessedValue any `json:"lastProcessedValue"`
@@ -41,8 +41,8 @@ type position struct {
 	MaxElement any `json:"maxElement,omitempty"`
 }
 
-// marshalSDKPosition marshals the underlying [position] into a [sdk.Position] as JSON bytes.
-func (p *position) marshalSDKPosition() (sdk.Position, error) {
+// MarshalSDKPosition marshals the underlying [position] into a [sdk.Position] as JSON bytes.
+func (p *Position) MarshalSDKPosition() (sdk.Position, error) {
 	positionBytes, err := json.Marshal(p)
 	if err != nil {
 		return nil, fmt.Errorf("marshal position: %w", err)
@@ -51,16 +51,16 @@ func (p *position) marshalSDKPosition() (sdk.Position, error) {
 	return sdk.Position(positionBytes), nil
 }
 
-// parsePosition converts an [sdk.Position] into a [position].
-func parsePosition(sdkPosition sdk.Position) (*position, error) {
+// ParsePosition converts an [sdk.Position] into a [position].
+func ParsePosition(sdkPosition sdk.Position) (*Position, error) {
 	if sdkPosition == nil {
-		return nil, errNilSDKPosition
+		return nil, ErrNilSDKPosition
 	}
 
-	pos := new(position)
-	if err := json.Unmarshal(sdkPosition, pos); err != nil {
+	position := new(Position)
+	if err := json.Unmarshal(sdkPosition, position); err != nil {
 		return nil, fmt.Errorf("unmarshal sdk.Position into position: %w", err)
 	}
 
-	return pos, nil
+	return position, nil
 }

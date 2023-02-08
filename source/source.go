@@ -17,12 +17,16 @@ package source
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/conduitio-labs/conduit-connector-neo4j/source/iterator"
 	sdk "github.com/conduitio/conduit-connector-sdk"
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 )
+
+// errNoIterator occurs when the [Combined] has no any underlying iterators.
+var errNoIterator = errors.New("no iterator")
 
 // Iterator defines an Iterator interface needed for the [Source].
 type Iterator interface {
@@ -34,9 +38,10 @@ type Iterator interface {
 type Source struct {
 	sdk.UnimplementedSource
 
-	config   Config
-	driver   neo4j.DriverWithContext
-	iterator Iterator
+	config          Config
+	driver          neo4j.DriverWithContext
+	snapshot        Iterator
+	pollingSnapshot Iterator
 }
 
 // New creates a new instance of the [Source].
@@ -65,7 +70,7 @@ func (s *Source) Configure(ctx context.Context, raw map[string]string) error {
 }
 
 // Open makes sure everything is prepared to read records.
-func (s *Source) Open(ctx context.Context, position sdk.Position) error {
+func (s *Source) Open(ctx context.Context, sdkPosition sdk.Position) error {
 	driver, err := neo4j.NewDriverWithContext(s.config.URI, s.config.Auth.AuthToken())
 	if err != nil {
 		return fmt.Errorf("create neo4j driver: %w", err)
@@ -77,7 +82,12 @@ func (s *Source) Open(ctx context.Context, position sdk.Position) error {
 
 	s.driver = driver
 
-	s.iterator, err = iterator.NewSnapshot(ctx, iterator.SnapshotParams{
+	position, err := iterator.ParsePosition(sdkPosition)
+	if err != nil && !errors.Is(err, iterator.ErrNilSDKPosition) {
+		return fmt.Errorf("parse position: %w", err)
+	}
+
+	s.pollingSnapshot, err = iterator.NewPollingSnapshot(ctx, iterator.SnapshotParams{
 		Driver:           driver,
 		OrderingProperty: s.config.OrderingProperty,
 		KeyProperties:    s.config.KeyProperties,
@@ -88,7 +98,23 @@ func (s *Source) Open(ctx context.Context, position sdk.Position) error {
 		Position:         position,
 	})
 	if err != nil {
-		return fmt.Errorf("init snapshot iterator: %w", err)
+		return fmt.Errorf("init polling snapshot iterator: %w", err)
+	}
+
+	if s.config.Snapshot && (position == nil || position.Mode == iterator.ModeSnapshot) {
+		s.snapshot, err = iterator.NewSnapshot(ctx, iterator.SnapshotParams{
+			Driver:           driver,
+			OrderingProperty: s.config.OrderingProperty,
+			KeyProperties:    s.config.KeyProperties,
+			EntityType:       s.config.EntityType,
+			EntityLabels:     s.config.EntityLabels,
+			BatchSize:        s.config.BatchSize,
+			DatabaseName:     s.config.Database,
+			Position:         position,
+		})
+		if err != nil {
+			return fmt.Errorf("init snapshot iterator: %w", err)
+		}
 	}
 
 	return nil
@@ -98,26 +124,32 @@ func (s *Source) Open(ctx context.Context, position sdk.Position) error {
 // It can return the error [sdk.ErrBackoffRetry] to signal to the SDK
 // it should call Read again with a backoff retry.
 func (s *Source) Read(ctx context.Context) (sdk.Record, error) {
-	hasNext, err := s.iterator.HasNext(ctx)
-	if err != nil {
-		return sdk.Record{}, fmt.Errorf("has next: %w", err)
-	}
+	switch {
+	case s.snapshot != nil:
+		record, err := read(ctx, s.snapshot)
+		if err != nil {
+			if !errors.Is(err, sdk.ErrBackoffRetry) {
+				return sdk.Record{}, err
+			}
 
-	if !hasNext {
-		return sdk.Record{}, sdk.ErrBackoffRetry
-	}
+			s.snapshot = nil
 
-	record, err := s.iterator.Next(ctx)
-	if err != nil {
-		return sdk.Record{}, fmt.Errorf("get next record: %w", err)
-	}
+			return read(ctx, s.pollingSnapshot)
+		}
 
-	return record, nil
+		return record, nil
+
+	case s.pollingSnapshot != nil:
+		return read(ctx, s.pollingSnapshot)
+
+	default:
+		return sdk.Record{}, errNoIterator
+	}
 }
 
 // Ack just logs a provided position.
-func (s *Source) Ack(ctx context.Context, position sdk.Position) error {
-	sdk.Logger(ctx).Debug().Str("position", string(position)).Msg("got ack")
+func (s *Source) Ack(ctx context.Context, sdkPosition sdk.Position) error {
+	sdk.Logger(ctx).Debug().Str("position", string(sdkPosition)).Msg("got ack")
 
 	return nil
 }
@@ -131,4 +163,23 @@ func (s *Source) Teardown(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// read is a helper function that accepts an [Iterator] and do a common read logic.
+func read(ctx context.Context, iterator Iterator) (sdk.Record, error) {
+	hasNext, err := iterator.HasNext(ctx)
+	if err != nil {
+		return sdk.Record{}, fmt.Errorf("has next: %w", err)
+	}
+
+	if !hasNext {
+		return sdk.Record{}, sdk.ErrBackoffRetry
+	}
+
+	record, err := iterator.Next(ctx)
+	if err != nil {
+		return sdk.Record{}, fmt.Errorf("get next record: %w", err)
+	}
+
+	return record, nil
 }
