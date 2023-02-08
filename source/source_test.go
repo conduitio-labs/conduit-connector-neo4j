@@ -117,11 +117,49 @@ func TestSource_Read_success(t *testing.T) {
 		},
 	}
 
-	it := mock.NewMockIterator(ctrl)
-	it.EXPECT().HasNext(ctx).Return(true, nil)
-	it.EXPECT().Next(ctx).Return(record, nil)
+	snapshotIt := mock.NewMockIterator(ctrl)
+	snapshotIt.EXPECT().HasNext(ctx).Return(true, nil)
+	snapshotIt.EXPECT().Next(ctx).Return(record, nil)
 
-	s := Source{iterator: it}
+	s := Source{snapshot: snapshotIt}
+
+	r, err := s.Read(ctx)
+	is.NoErr(err)
+
+	is.Equal(r, record)
+}
+
+func TestSource_Read_successPolling(t *testing.T) {
+	t.Parallel()
+
+	is := is.New(t)
+
+	ctrl := gomock.NewController(t)
+	ctx := context.Background()
+
+	key := make(sdk.StructuredData)
+	key["id"] = 1
+
+	metadata := make(sdk.Metadata)
+	metadata.SetCreatedAt(time.Time{})
+
+	record := sdk.Record{
+		Position: sdk.Position(`{"lastId": 1}`),
+		Metadata: metadata,
+		Key:      key,
+		Payload: sdk.Change{
+			After: key,
+		},
+	}
+
+	snapshotIt := mock.NewMockIterator(ctrl)
+	snapshotIt.EXPECT().HasNext(ctx).Return(false, sdk.ErrBackoffRetry)
+
+	pollingSnapshotIt := mock.NewMockIterator(ctrl)
+	pollingSnapshotIt.EXPECT().HasNext(ctx).Return(true, nil)
+	pollingSnapshotIt.EXPECT().Next(ctx).Return(record, nil)
+
+	s := Source{snapshot: snapshotIt, pollingSnapshot: pollingSnapshotIt}
 
 	r, err := s.Read(ctx)
 	is.NoErr(err)
@@ -137,10 +175,10 @@ func TestSource_Read_failHasNext(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	ctx := context.Background()
 
-	it := mock.NewMockIterator(ctrl)
-	it.EXPECT().HasNext(ctx).Return(true, errors.New("get data: fail"))
+	snapshotIt := mock.NewMockIterator(ctrl)
+	snapshotIt.EXPECT().HasNext(ctx).Return(true, errors.New("get data: fail"))
 
-	s := Source{iterator: it}
+	s := Source{snapshot: snapshotIt}
 
 	_, err := s.Read(ctx)
 	is.True(err != nil)
@@ -154,11 +192,11 @@ func TestSource_Read_failNext(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	ctx := context.Background()
 
-	it := mock.NewMockIterator(ctrl)
-	it.EXPECT().HasNext(ctx).Return(true, nil)
-	it.EXPECT().Next(ctx).Return(sdk.Record{}, errors.New("key is not exist"))
+	snapshotIt := mock.NewMockIterator(ctrl)
+	snapshotIt.EXPECT().HasNext(ctx).Return(true, nil)
+	snapshotIt.EXPECT().Next(ctx).Return(sdk.Record{}, errors.New("key is not exist"))
 
-	s := Source{iterator: it}
+	s := Source{snapshot: snapshotIt}
 
 	_, err := s.Read(ctx)
 	is.True(err != nil)

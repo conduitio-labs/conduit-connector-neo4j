@@ -33,8 +33,8 @@ const (
 	// all Cypher queries used by the [Snapshot] are listed below in the format of Go fmt.
 	getNodeMaxPropertyQueryTemplate         = "MATCH (obj:%s) RETURN obj.%s as %s ORDER BY obj.%s DESC LIMIT 1"
 	getRelationshipMaxPropertyQueryTemplate = "MATCH ()-[obj:%s]-() RETURN obj.%s as %s ORDER BY obj.%s DESC LIMIT 1"
-	getNodesQueryTemplate                   = "MATCH (obj:%s) %s RETURN obj LIMIT %d"
-	getRelationshipsQueryTemplate           = "MATCH (src)-[obj:%s]->(trgt) %s RETURN obj, src, trgt LIMIT %d"
+	getNodesQueryTemplate                   = "MATCH (obj:%s) WHERE %s RETURN obj LIMIT %d"
+	getRelationshipsQueryTemplate           = "MATCH (src)-[obj:%s]->(trgt) WHERE %s RETURN obj, src, trgt LIMIT %d"
 	opmvLTEWhereClause                      = "obj.%s <= $opmv"
 	opvGTWhereClause                        = "obj.%s > $opv"
 
@@ -63,10 +63,13 @@ type Snapshot struct {
 	entityLabels             string
 	batchSize                int
 	databaseName             string
-	position                 *position
+	position                 *Position
 	// records stores fetched and parsed Neo4j records,
 	// this channel works as a queue from which the Next method takes records.
 	records chan map[string]any
+	// polling defines if the snapshot is used to detect insertions
+	// by polling for new documents.
+	polling bool
 }
 
 // SnapshotParams is incoming params for the [NewSnapshot] function.
@@ -78,27 +81,23 @@ type SnapshotParams struct {
 	EntityLabels     []string
 	BatchSize        int
 	DatabaseName     string
-	Position         sdk.Position
+	Position         *Position
 }
 
 // NewSnapshot creates a new instance of the [Snapshot].
 func NewSnapshot(ctx context.Context, params SnapshotParams) (*Snapshot, error) {
-	position, err := parsePosition(params.Position)
-	if err != nil && !errors.Is(err, errNilSDKPosition) {
-		return nil, fmt.Errorf("parse position: %w", err)
-	}
-
 	var (
 		orderingPropertyMaxValue any
 		// join entity labels here to not do this for each individual element
 		entityLabels = strings.Join(params.EntityLabels, ":")
 	)
 
-	switch pos := position; {
-	case pos != nil && position.MaxElement != nil:
+	switch position := params.Position; {
+	case position != nil && position.MaxElement != nil:
 		orderingPropertyMaxValue = position.MaxElement
 
 	default:
+		var err error
 		orderingPropertyMaxValue, err = getMaxPropertyValue(
 			ctx, params.Driver,
 			params.DatabaseName, entityLabels, params.OrderingProperty,
@@ -118,8 +117,41 @@ func NewSnapshot(ctx context.Context, params SnapshotParams) (*Snapshot, error) 
 		entityLabels:             entityLabels,
 		batchSize:                params.BatchSize,
 		databaseName:             params.DatabaseName,
-		position:                 position,
+		position:                 params.Position,
 		records:                  make(chan map[string]any, params.BatchSize),
+	}, nil
+}
+
+// NewPollingSnapshot creates a new instance of the [Snapshot] iterator prepared for polling.
+func NewPollingSnapshot(ctx context.Context, params SnapshotParams) (*Snapshot, error) {
+	// join entity labels here to not do this for each individual element
+	entityLabels := strings.Join(params.EntityLabels, ":")
+
+	if params.Position == nil {
+		orderingPropertyMaxValue, err := getMaxPropertyValue(ctx, params.Driver,
+			params.DatabaseName, entityLabels, params.OrderingProperty,
+			params.EntityType)
+		if err != nil && !errors.Is(err, errNoElements) {
+			return nil, fmt.Errorf("get ordering property max value: %w", err)
+		}
+
+		params.Position = &Position{
+			Mode:               ModeSnapshotPolling,
+			LastProcessedValue: orderingPropertyMaxValue,
+		}
+	}
+
+	return &Snapshot{
+		driver:           params.Driver,
+		keyProperties:    params.KeyProperties,
+		orderingProperty: params.OrderingProperty,
+		entityType:       params.EntityType,
+		entityLabels:     entityLabels,
+		batchSize:        params.BatchSize,
+		databaseName:     params.DatabaseName,
+		position:         params.Position,
+		records:          make(chan map[string]any, params.BatchSize),
+		polling:          true,
 	}, nil
 }
 
@@ -143,14 +175,21 @@ func (s *Snapshot) Next(ctx context.Context) (sdk.Record, error) {
 		return sdk.Record{}, ctx.Err() //nolint:wrapcheck // there's no much to wrap here
 
 	case record := <-s.records:
+		// if the snapshot is polling new items,
+		// we mark its position as CDC to identify it during pauses correctly
+		mode := ModeSnapshot
+		if s.polling {
+			mode = ModeSnapshotPolling
+		}
+
 		// construct the position
-		position := &position{
-			Mode:               modeSnapshot,
+		position := &Position{
+			Mode:               mode,
 			LastProcessedValue: record[s.orderingProperty],
 			MaxElement:         s.orderingPropertyMaxValue,
 		}
 
-		sdkPosition, err := position.marshalSDKPosition()
+		sdkPosition, err := position.MarshalSDKPosition()
 		if err != nil {
 			return sdk.Record{}, fmt.Errorf("marshal sdk position: %w", err)
 		}
@@ -172,6 +211,10 @@ func (s *Snapshot) Next(ctx context.Context) (sdk.Record, error) {
 		metadata := sdk.Metadata{metadataEntityLabelsField: s.entityLabels}
 		metadata.SetCreatedAt(time.Now())
 
+		if s.polling {
+			return sdk.Util.Source.NewRecordCreate(sdkPosition, metadata, key, sdk.StructuredData(record)), nil
+		}
+
 		return sdk.Util.Source.NewRecordSnapshot(sdkPosition, metadata, key, sdk.StructuredData(record)), nil
 	}
 }
@@ -192,15 +235,19 @@ func (s *Snapshot) loadBatch(ctx context.Context) error {
 	// if the ordering property max value isn't nil,
 	// we'll use it to get elements with ordering property less than or equal to the max value
 	if s.orderingPropertyMaxValue != nil {
-		whereClause += "WHERE " + fmt.Sprintf(opmvLTEWhereClause, s.orderingProperty)
+		whereClause += fmt.Sprintf(opmvLTEWhereClause, s.orderingProperty)
 		params[orderingPropertyMaxValueFieldName] = s.orderingPropertyMaxValue
+	}
+
+	if s.orderingPropertyMaxValue != nil && s.position != nil && s.position.LastProcessedValue != nil {
+		whereClause += " AND "
 	}
 
 	// if the position and its last processed value are not nil,
 	// we'll use the value to construct the where clause so we only get elements
 	// that have ordering field greater than the position's last processed value
 	if s.position != nil && s.position.LastProcessedValue != nil {
-		whereClause += " AND " + fmt.Sprintf(opvGTWhereClause, s.orderingProperty)
+		whereClause += fmt.Sprintf(opvGTWhereClause, s.orderingProperty)
 		params[orderingPropertyValueFieldName] = s.position.LastProcessedValue
 	}
 

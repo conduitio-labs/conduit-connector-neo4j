@@ -17,9 +17,9 @@ package iterator
 import "errors"
 
 var (
-	// errNilSDKPosition occurs when trying to parse a nil [sdk.Position].
+	// ErrNilSDKPosition occurs when trying to parse a nil [sdk.Position].
 	// It's just a sentinel error for the [parsePosition] function.
-	errNilSDKPosition = errors.New("nil sdk position")
+	ErrNilSDKPosition = errors.New("nil sdk position")
 
 	// errNoElements occurs when trying to read elements
 	// but Neo4j returns nothing.
