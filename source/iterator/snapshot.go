@@ -140,7 +140,7 @@ func NewPollingSnapshot(ctx context.Context, params SnapshotParams) (*Snapshot, 
 	// join entity labels here to not do this for each individual element
 	entityLabels := strings.Join(params.EntityLabels, ":")
 
-	if params.Position == nil {
+	if params.Position == nil || params.Position.Mode == ModeSnapshot {
 		orderingPropertyMaxValue, err := getMaxPropertyValue(ctx, params.Driver,
 			params.DatabaseName, entityLabels, params.OrderingProperty,
 			params.EntityType)

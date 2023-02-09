@@ -3,6 +3,7 @@ module github.com/conduitio-labs/conduit-connector-neo4j
 go 1.19
 
 require (
+	github.com/brianvoe/gofakeit v3.18.0+incompatible
 	github.com/conduitio/conduit-connector-sdk v0.4.3
 	github.com/golang/mock v1.6.0
 	github.com/matryer/is v1.4.0
