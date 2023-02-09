@@ -33,23 +33,23 @@ import (
 const (
 	// all Cypher queries used by the [Snapshot] are listed below in the format of Go fmt.
 	getNodeMaxPropertyQueryTemplate = `
-	MATCH (obj:%s)
-	WHERE obj.%s IS NOT NULL
-	RETURN obj.%s as %s
-	ORDER BY obj.%s DESC
-	LIMIT 1`
+	MATCH (obj:%s) WHERE obj.%s IS NOT NULL
+	RETURN obj.%s as %s ORDER BY obj.%s DESC LIMIT 1`
 
 	getRelationshipMaxPropertyQueryTemplate = `
-	MATCH ()-[obj:%s]-()
-	WHERE obj.%s IS NOT NULL
-	RETURN obj.%s as %s
-	ORDER BY obj.%s DESC
-	LIMIT 1`
+	MATCH ()-[obj:%s]-() WHERE obj.%s IS NOT NULL
+	RETURN obj.%s as %s ORDER BY obj.%s DESC LIMIT 1`
 
-	getNodesQueryTemplate         = "MATCH (obj:%s) WHERE %s RETURN obj LIMIT %d"
-	getRelationshipsQueryTemplate = "MATCH (src)-[obj:%s]->(trgt) WHERE %s RETURN obj, src, trgt LIMIT %d"
-	opmvLTEWhereClause            = "obj.%s <= $opmv"
-	opvGTWhereClause              = "obj.%s > $opv"
+	getNodesQueryTemplate = `
+	MATCH (obj:%s) WHERE %s
+	RETURN obj ORDER BY obj.%s ASC LIMIT %d`
+
+	getRelationshipsQueryTemplate = `
+	MATCH (src)-[obj:%s]->(trgt) WHERE %s
+	RETURN obj, src, trgt ORDER BY obj.%s ASC LIMIT %d`
+
+	opmvLTEWhereClause = "obj.%s <= $opmv"
+	opvGTWhereClause   = "obj.%s > $opv"
 
 	// some helpers for Cypher queries.
 	orderingPropertyMaxValueFieldName = "opmv"
@@ -275,7 +275,7 @@ func (s *Snapshot) loadBatch(ctx context.Context) error {
 		getQueryTemplate = getRelationshipsQueryTemplate
 	}
 
-	query := fmt.Sprintf(getQueryTemplate, s.entityLabels, whereClause, s.batchSize)
+	query := fmt.Sprintf(getQueryTemplate, s.entityLabels, whereClause, s.orderingProperty, s.batchSize)
 
 	_, err := neo4j.ExecuteRead(ctx, session, func(tx neo4j.ManagedTransaction) (neo4j.ResultWithContext, error) {
 		result, err := tx.Run(ctx, query, params)
