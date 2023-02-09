@@ -16,6 +16,7 @@ package iterator
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -31,12 +32,24 @@ import (
 
 const (
 	// all Cypher queries used by the [Snapshot] are listed below in the format of Go fmt.
-	getNodeMaxPropertyQueryTemplate         = "MATCH (obj:%s) RETURN obj.%s as %s ORDER BY obj.%s DESC LIMIT 1"
-	getRelationshipMaxPropertyQueryTemplate = "MATCH ()-[obj:%s]-() RETURN obj.%s as %s ORDER BY obj.%s DESC LIMIT 1"
-	getNodesQueryTemplate                   = "MATCH (obj:%s) WHERE %s RETURN obj LIMIT %d"
-	getRelationshipsQueryTemplate           = "MATCH (src)-[obj:%s]->(trgt) WHERE %s RETURN obj, src, trgt LIMIT %d"
-	opmvLTEWhereClause                      = "obj.%s <= $opmv"
-	opvGTWhereClause                        = "obj.%s > $opv"
+	getNodeMaxPropertyQueryTemplate = `
+	MATCH (obj:%s)
+	WHERE obj.%s IS NOT NULL
+	RETURN obj.%s as %s
+	ORDER BY obj.%s DESC
+	LIMIT 1`
+
+	getRelationshipMaxPropertyQueryTemplate = `
+	MATCH ()-[obj:%s]-()
+	WHERE obj.%s IS NOT NULL
+	RETURN obj.%s as %s
+	ORDER BY obj.%s DESC
+	LIMIT 1`
+
+	getNodesQueryTemplate         = "MATCH (obj:%s) WHERE %s RETURN obj LIMIT %d"
+	getRelationshipsQueryTemplate = "MATCH (src)-[obj:%s]->(trgt) WHERE %s RETURN obj, src, trgt LIMIT %d"
+	opmvLTEWhereClause            = "obj.%s <= $opmv"
+	opvGTWhereClause              = "obj.%s > $opv"
 
 	// some helpers for Cypher queries.
 	orderingPropertyMaxValueFieldName = "opmv"
@@ -211,11 +224,17 @@ func (s *Snapshot) Next(ctx context.Context) (sdk.Record, error) {
 		metadata := sdk.Metadata{metadataEntityLabelsField: s.entityLabels}
 		metadata.SetCreatedAt(time.Now())
 
-		if s.polling {
-			return sdk.Util.Source.NewRecordCreate(sdkPosition, metadata, key, sdk.StructuredData(record)), nil
+		// prepare the payload
+		recordBytes, err := json.Marshal(record)
+		if err != nil {
+			return sdk.Record{}, fmt.Errorf("marshal record: %w", err)
 		}
 
-		return sdk.Util.Source.NewRecordSnapshot(sdkPosition, metadata, key, sdk.StructuredData(record)), nil
+		if s.polling {
+			return sdk.Util.Source.NewRecordCreate(sdkPosition, metadata, key, sdk.RawData(recordBytes)), nil
+		}
+
+		return sdk.Util.Source.NewRecordSnapshot(sdkPosition, metadata, key, sdk.RawData(recordBytes)), nil
 	}
 }
 
@@ -342,7 +361,7 @@ func getMaxPropertyValue(
 		maxPropertyQueryTemplate = getRelationshipMaxPropertyQueryTemplate
 	}
 
-	query := fmt.Sprintf(maxPropertyQueryTemplate, labels, property, property, property)
+	query := fmt.Sprintf(maxPropertyQueryTemplate, labels, property, property, property, property)
 
 	propertyValue, err := neo4j.ExecuteRead(ctx, session, func(tx neo4j.ManagedTransaction) (any, error) {
 		result, err := tx.Run(ctx, query, nil)
