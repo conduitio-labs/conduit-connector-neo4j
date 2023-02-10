@@ -41,11 +41,11 @@ const (
 	RETURN obj.%s as %s ORDER BY obj.%s DESC LIMIT 1`
 
 	getNodesQueryTemplate = `
-	MATCH (obj:%s) WHERE obj.%s IS NOT NULL AND %s
+	MATCH (obj:%s) WHERE obj.%s IS NOT NULL %s
 	RETURN obj ORDER BY obj.%s ASC LIMIT %d`
 
 	getRelationshipsQueryTemplate = `
-	MATCH (src)-[obj:%s]->(trgt) WHERE obj.%s IS NOT NULL AND %s
+	MATCH (src)-[obj:%s]->(trgt) WHERE obj.%s IS NOT NULL %s
 	RETURN obj, src, trgt ORDER BY obj.%s ASC LIMIT %d`
 
 	opmvLTEWhereClause = "obj.%s <= $opmv"
@@ -250,6 +250,12 @@ func (s *Snapshot) loadBatch(ctx context.Context) error {
 		whereClause string
 		params      = make(map[string]any)
 	)
+
+	// put the AND here because we have the WHERE obj.%s IS NOT NULL part in the query
+	// and after it we need to put AND if there's more items in the query
+	if s.orderingPropertyMaxValue != nil || (s.position != nil && s.position.LastProcessedValue != nil) {
+		whereClause += " AND "
+	}
 
 	// if the ordering property max value isn't nil,
 	// we'll use it to get elements with ordering property less than or equal to the max value
