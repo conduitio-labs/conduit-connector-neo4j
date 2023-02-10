@@ -240,6 +240,8 @@ func (s *Snapshot) Next(ctx context.Context) (sdk.Record, error) {
 
 // loadBatch finds a batch of elements in a Neo4j database,
 // based on labels and ordering property.
+//
+//nolint:funlen // the function is pretty straightforward
 func (s *Snapshot) loadBatch(ctx context.Context) error {
 	session := s.driver.NewSession(ctx, neo4j.SessionConfig{
 		DatabaseName: s.databaseName,
