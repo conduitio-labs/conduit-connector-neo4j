@@ -41,11 +41,11 @@ const (
 	RETURN obj.%s as %s ORDER BY obj.%s DESC LIMIT 1`
 
 	getNodesQueryTemplate = `
-	MATCH (obj:%s) WHERE %s
+	MATCH (obj:%s) WHERE obj.%s IS NOT NULL AND %s
 	RETURN obj ORDER BY obj.%s ASC LIMIT %d`
 
 	getRelationshipsQueryTemplate = `
-	MATCH (src)-[obj:%s]->(trgt) WHERE %s
+	MATCH (src)-[obj:%s]->(trgt) WHERE obj.%s IS NOT NULL AND %s
 	RETURN obj, src, trgt ORDER BY obj.%s ASC LIMIT %d`
 
 	opmvLTEWhereClause = "obj.%s <= $opmv"
@@ -275,7 +275,9 @@ func (s *Snapshot) loadBatch(ctx context.Context) error {
 		getQueryTemplate = getRelationshipsQueryTemplate
 	}
 
-	query := fmt.Sprintf(getQueryTemplate, s.entityLabels, whereClause, s.orderingProperty, s.batchSize)
+	query := fmt.Sprintf(
+		getQueryTemplate, s.entityLabels, s.orderingProperty, whereClause, s.orderingProperty, s.batchSize,
+	)
 
 	_, err := neo4j.ExecuteRead(ctx, session, func(tx neo4j.ManagedTransaction) (neo4j.ResultWithContext, error) {
 		result, err := tx.Run(ctx, query, params)
