@@ -189,7 +189,7 @@ func (s *Snapshot) Next(ctx context.Context) (sdk.Record, error) {
 
 	case record := <-s.records:
 		// if the snapshot is polling new items,
-		// we mark its position as CDC to identify it during pauses correctly
+		// we mark its position as polling to identify it during pauses correctly
 		mode := ModeSnapshot
 		if s.polling {
 			mode = ModeSnapshotPolling

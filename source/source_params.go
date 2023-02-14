@@ -75,7 +75,7 @@ func (Config) Parameters() map[string]sdk.Parameter {
 		},
 		"snapshot": {
 			Default:     "true",
-			Description: "Determines whether or not the connector will take a snapshot of all nodes or relationships before starting CDC mode.",
+			Description: "Determines whether or not the connector will take a snapshot of all nodes or relationships before starting polling mode.",
 			Type:        sdk.ParameterTypeBool,
 			Validations: []sdk.Validation{},
 		},

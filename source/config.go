@@ -39,6 +39,6 @@ type Config struct {
 	// The size of an element batch.
 	BatchSize int `json:"batchSize" validate:"gt=0,lt=100001" default:"1000"`
 	// Determines whether or not the connector will take a snapshot
-	// of all nodes or relationships before starting CDC mode.
+	// of all nodes or relationships before starting polling mode.
 	Snapshot bool `json:"snapshot" default:"true"`
 }
