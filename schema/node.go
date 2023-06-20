@@ -1,4 +1,4 @@
-// Copyright © 2022 Meroxa, Inc. & Yalantis
+// Copyright © 2023 Meroxa, Inc. & Yalantis
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,18 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package neo4j implements Neo4j connector for Conduit.
-// It provides both, a source and a destination Neo4j connector.
-package neo4j
+// Package schema holds definitions of models shared between different parts of the connector.
+package schema
 
-import (
-	"github.com/conduitio-labs/conduit-connector-neo4j/destination"
-	"github.com/conduitio-labs/conduit-connector-neo4j/source"
-	sdk "github.com/conduitio/conduit-connector-sdk"
-)
-
-var Connector = sdk.Connector{
-	NewSpecification: Specification,
-	NewSource:        source.New,
-	NewDestination:   destination.New,
+// Node defines a model for source and target nodes
+// that need to be stored along with properties if the entityType is relationship.
+type Node struct {
+	Labels []string       `json:"labels"`
+	Key    map[string]any `json:"key"`
 }
