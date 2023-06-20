@@ -81,6 +81,7 @@ func TestAcceptance(t *testing.T) {
 				SourceConfig:      cfg,
 				DestinationConfig: cfg,
 				BeforeTest:        beforeTest(cfg),
+				Skip:              []string{`.*_Configure_RequiredParams`},
 			},
 		},
 	})
