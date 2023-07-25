@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/brianvoe/gofakeit v3.18.0+incompatible
-	github.com/conduitio/conduit-connector-sdk v0.7.0
+	github.com/conduitio/conduit-connector-sdk v0.7.1
 	github.com/golang/mock v1.6.0
 	github.com/matryer/is v1.4.1
 	github.com/mitchellh/mapstructure v1.5.0
