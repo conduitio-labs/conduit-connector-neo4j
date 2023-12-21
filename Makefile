@@ -21,3 +21,9 @@ mockgen:
 paramgen:
 	paramgen -path=./destination -output=destination_params.go Config
 	paramgen -path=./source -output=source_params.go Config
+
+.PHONY: install-tools
+install-tools:
+	@echo Installing tools from tools.go
+	@go list -e -f '{{ join .Imports "\n" }}' tools.go | xargs -tI % go install %
+	@go mod tidy

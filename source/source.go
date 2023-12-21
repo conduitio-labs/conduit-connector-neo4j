@@ -55,7 +55,7 @@ func (s *Source) Parameters() map[string]sdk.Parameter {
 }
 
 // Configure parses and initializes the [Source] config.
-func (s *Source) Configure(ctx context.Context, raw map[string]string) error {
+func (s *Source) Configure(_ context.Context, raw map[string]string) error {
 	if err := sdk.Util.ParseConfig(raw, &s.config); err != nil {
 		return fmt.Errorf("parse config: %w", err)
 	}
