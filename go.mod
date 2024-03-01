@@ -11,7 +11,7 @@ require (
 	github.com/golangci/golangci-lint v1.56.2
 	github.com/matryer/is v1.4.1
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/neo4j/neo4j-go-driver/v5 v5.17.0
+	github.com/neo4j/neo4j-go-driver/v5 v5.18.0
 )
 
 require (
