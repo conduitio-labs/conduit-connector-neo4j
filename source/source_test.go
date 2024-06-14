@@ -24,8 +24,8 @@ import (
 	"github.com/conduitio-labs/conduit-connector-neo4j/config"
 	"github.com/conduitio-labs/conduit-connector-neo4j/source/mock"
 	sdk "github.com/conduitio/conduit-connector-sdk"
-	"github.com/golang/mock/gomock"
 	"github.com/matryer/is"
+	"go.uber.org/mock/gomock"
 )
 
 // The mapstructure package that is used within the sdk.Util.ParseConfig

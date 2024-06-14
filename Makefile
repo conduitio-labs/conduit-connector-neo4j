@@ -15,6 +15,10 @@ test:
 lint:
 	golangci-lint run
 
+.PHONY: generate
+generate: mockgen paramgen
+	go generate ./...
+
 .PHONY: mockgen
 mockgen:
 	mockgen -package mock -source destination/destination.go -destination destination/mock/destination.go
