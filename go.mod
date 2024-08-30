@@ -8,7 +8,7 @@ require (
 	github.com/golangci/golangci-lint v1.60.3
 	github.com/matryer/is v1.4.1
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/neo4j/neo4j-go-driver/v5 v5.23.1
+	github.com/neo4j/neo4j-go-driver/v5 v5.24.0
 	go.uber.org/mock v0.4.0
 )
 
