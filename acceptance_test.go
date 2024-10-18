@@ -16,13 +16,13 @@ package neo4j
 
 import (
 	"fmt"
-	"github.com/conduitio-labs/conduit-connector-neo4j/source"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/brianvoe/gofakeit"
 	"github.com/conduitio-labs/conduit-connector-neo4j/config"
+	"github.com/conduitio-labs/conduit-connector-neo4j/source"
 	"github.com/conduitio/conduit-commons/opencdc"
 	sdk "github.com/conduitio/conduit-connector-sdk"
 )
@@ -89,7 +89,7 @@ func TestAcceptance(t *testing.T) {
 				Connector:         Connector,
 				SourceConfig:      srcConfig,
 				DestinationConfig: destConfig,
-				BeforeTest: func(t *testing.T) {
+				BeforeTest: func(*testing.T) {
 					// before test set the config labels field to a unique name prefixed with the testLabelPrefix.
 					srcConfig[config.KeyEntityLabels] = fmt.Sprintf("%s_%d", testLabelPrefix, time.Now().UnixNano())
 					destConfig[config.KeyEntityLabels] = fmt.Sprintf("%s_%d", testLabelPrefix, time.Now().UnixNano())

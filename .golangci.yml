@@ -16,8 +16,6 @@ linters-settings:
     values:
       regexp:
         copyright-year: 20[2-9]\d
-  lll:
-    line-length: 120
 
 linters:
   # please, do not use `enable-all`: it's deprecated and will be removed soon.
@@ -55,7 +53,6 @@ linters:
     - govet
     - ineffassign
     - importas
-    - lll
     - misspell
     - makezero
     - nakedret
