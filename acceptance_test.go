@@ -23,6 +23,7 @@ import (
 	"github.com/brianvoe/gofakeit"
 	"github.com/conduitio-labs/conduit-connector-neo4j/config"
 	"github.com/conduitio-labs/conduit-connector-neo4j/source"
+	"github.com/conduitio/conduit-commons/opencdc"
 	sdk "github.com/conduitio/conduit-connector-sdk"
 )
 
@@ -48,16 +49,16 @@ type driver struct {
 }
 
 // GenerateRecord overrides the [sdk.ConfigurableAcceptanceTestDriver] GenerateRecord method.
-func (d *driver) GenerateRecord(t *testing.T, operation sdk.Operation) sdk.Record {
+func (d *driver) GenerateRecord(t *testing.T, operation opencdc.Operation) opencdc.Record {
 	t.Helper()
 
 	atomic.AddInt64(&d.idCounter, 1)
 
-	return sdk.Record{
+	return opencdc.Record{
 		Operation: operation,
-		Key:       sdk.StructuredData{"id": float64(d.idCounter)},
-		Payload: sdk.Change{
-			After: sdk.RawData(fmt.Sprintf(`{"id":%v,"name":"%s"}`, float64(d.idCounter), gofakeit.Name())),
+		Key:       opencdc.StructuredData{"id": float64(d.idCounter)},
+		Payload: opencdc.Change{
+			After: opencdc.RawData(fmt.Sprintf(`{"id":%v,"name":"%s"}`, float64(d.idCounter), gofakeit.Name())),
 		},
 	}
 }

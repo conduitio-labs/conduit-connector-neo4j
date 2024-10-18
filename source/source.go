@@ -21,6 +21,8 @@ import (
 	"fmt"
 
 	"github.com/conduitio-labs/conduit-connector-neo4j/source/iterator"
+	"github.com/conduitio/conduit-commons/config"
+	"github.com/conduitio/conduit-commons/opencdc"
 	sdk "github.com/conduitio/conduit-connector-sdk"
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 )
@@ -31,7 +33,7 @@ var errNoIterator = errors.New("no iterator")
 // Iterator defines an Iterator interface needed for the [Source].
 type Iterator interface {
 	HasNext(context.Context) (bool, error)
-	Next(context.Context) (sdk.Record, error)
+	Next(context.Context) (opencdc.Record, error)
 }
 
 // Source Neo4j Connector reads records from a Neo4j.
@@ -49,14 +51,14 @@ func New() sdk.Source {
 	return sdk.SourceWithMiddleware(&Source{}, sdk.DefaultSourceMiddleware()...)
 }
 
-// Parameters is a map of named [sdk.Parameter] that describe how to configure the [Source].
-func (s *Source) Parameters() map[string]sdk.Parameter {
+// Parameters is a map of named [config.Parameter] that describe how to configure the [Source].
+func (s *Source) Parameters() config.Parameters {
 	return s.config.Parameters()
 }
 
 // Configure parses and initializes the [Source] config.
-func (s *Source) Configure(_ context.Context, raw map[string]string) error {
-	if err := sdk.Util.ParseConfig(raw, &s.config); err != nil {
+func (s *Source) Configure(_ context.Context, raw config.Config) error {
+	if err := sdk.Util.ParseConfig(ctx, raw, &s.config, New().Parameters()); err != nil {
 		return fmt.Errorf("parse config: %w", err)
 	}
 
@@ -70,7 +72,7 @@ func (s *Source) Configure(_ context.Context, raw map[string]string) error {
 }
 
 // Open makes sure everything is prepared to read records.
-func (s *Source) Open(ctx context.Context, sdkPosition sdk.Position) error {
+func (s *Source) Open(ctx context.Context, sdkPosition opencdc.Position) error {
 	driver, err := neo4j.NewDriverWithContext(s.config.URI, s.config.Auth.AuthToken())
 	if err != nil {
 		return fmt.Errorf("create neo4j driver: %w", err)
@@ -120,16 +122,16 @@ func (s *Source) Open(ctx context.Context, sdkPosition sdk.Position) error {
 	return nil
 }
 
-// Read returns a new [sdk.Record].
+// Read returns a new [opencdc.Record].
 // It can return the error [sdk.ErrBackoffRetry] to signal to the SDK
 // it should call Read again with a backoff retry.
-func (s *Source) Read(ctx context.Context) (sdk.Record, error) {
+func (s *Source) Read(ctx context.Context) (opencdc.Record, error) {
 	switch {
 	case s.snapshot != nil:
 		record, err := read(ctx, s.snapshot)
 		if err != nil {
 			if !errors.Is(err, sdk.ErrBackoffRetry) {
-				return sdk.Record{}, err
+				return opencdc.Record{}, err
 			}
 
 			s.snapshot = nil
@@ -143,12 +145,12 @@ func (s *Source) Read(ctx context.Context) (sdk.Record, error) {
 		return read(ctx, s.pollingSnapshot)
 
 	default:
-		return sdk.Record{}, errNoIterator
+		return opencdc.Record{}, errNoIterator
 	}
 }
 
 // Ack just logs a provided position.
-func (s *Source) Ack(ctx context.Context, sdkPosition sdk.Position) error {
+func (s *Source) Ack(ctx context.Context, sdkPosition opencdc.Position) error {
 	sdk.Logger(ctx).Debug().Str("position", string(sdkPosition)).Msg("got ack")
 
 	return nil
@@ -166,19 +168,19 @@ func (s *Source) Teardown(ctx context.Context) error {
 }
 
 // read is a helper function that accepts an [Iterator] and do a common read logic.
-func read(ctx context.Context, iterator Iterator) (sdk.Record, error) {
+func read(ctx context.Context, iterator Iterator) (opencdc.Record, error) {
 	hasNext, err := iterator.HasNext(ctx)
 	if err != nil {
-		return sdk.Record{}, fmt.Errorf("has next: %w", err)
+		return opencdc.Record{}, fmt.Errorf("has next: %w", err)
 	}
 
 	if !hasNext {
-		return sdk.Record{}, sdk.ErrBackoffRetry
+		return opencdc.Record{}, sdk.ErrBackoffRetry
 	}
 
 	record, err := iterator.Next(ctx)
 	if err != nil {
-		return sdk.Record{}, fmt.Errorf("get next record: %w", err)
+		return opencdc.Record{}, fmt.Errorf("get next record: %w", err)
 	}
 
 	return record, nil

@@ -20,13 +20,15 @@ import (
 	"fmt"
 
 	"github.com/conduitio-labs/conduit-connector-neo4j/destination/writer"
+	"github.com/conduitio/conduit-commons/config"
+	"github.com/conduitio/conduit-commons/opencdc"
 	sdk "github.com/conduitio/conduit-connector-sdk"
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 )
 
 // Writer is a writer interface needed for the [Destination].
 type Writer interface {
-	Write(ctx context.Context, record sdk.Record) error
+	Write(ctx context.Context, record opencdc.Record) error
 }
 
 // Destination Neo4j Connector persists records to a Neo4j.
@@ -43,14 +45,14 @@ func New() sdk.Destination {
 	return sdk.DestinationWithMiddleware(&Destination{}, sdk.DefaultDestinationMiddleware()...)
 }
 
-// Parameters is a map of named [sdk.Parameter] that describe how to configure the [Destination].
-func (d *Destination) Parameters() map[string]sdk.Parameter {
+// Parameters is a map of named [config.Parameter] that describe how to configure the [Destination].
+func (d *Destination) Parameters() config.Parameters {
 	return d.config.Parameters()
 }
 
 // Configure parses and initializes the [Destination] config.
-func (d *Destination) Configure(_ context.Context, raw map[string]string) error {
-	if err := sdk.Util.ParseConfig(raw, &d.config); err != nil {
+func (d *Destination) Configure(_ context.Context, raw config.Config) error {
+	if err := sdk.Util.ParseConfig(ctx, raw, &d.config, New().Parameters()); err != nil {
 		return fmt.Errorf("parse config: %w", err)
 	}
 
@@ -80,7 +82,7 @@ func (d *Destination) Open(ctx context.Context) error {
 }
 
 // Write writes a record into a [Destination].
-func (d *Destination) Write(ctx context.Context, records []sdk.Record) (int, error) {
+func (d *Destination) Write(ctx context.Context, records []opencdc.Record) (int, error) {
 	for i, record := range records {
 		if err := d.writer.Write(ctx, record); err != nil {
 			return i, fmt.Errorf("write record: %w", err)

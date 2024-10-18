@@ -23,6 +23,7 @@ import (
 
 	"github.com/brianvoe/gofakeit"
 	"github.com/conduitio-labs/conduit-connector-neo4j/config"
+	"github.com/conduitio/conduit-commons/opencdc"
 	sdk "github.com/conduitio/conduit-connector-sdk"
 	"github.com/matryer/is"
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
@@ -72,8 +73,8 @@ func TestSource_Read_successSnapshotNode(t *testing.T) {
 
 	record, err := source.Read(ctx)
 	is.NoErr(err)
-	is.Equal(record.Operation, sdk.OperationSnapshot)
-	is.Equal(record.Payload.After, sdk.RawData(rawTestNode))
+	is.Equal(record.Operation, opencdc.OperationSnapshot)
+	is.Equal(record.Payload.After, opencdc.RawData(rawTestNode))
 }
 
 func TestSource_Read_successResumeSnapshotNode(t *testing.T) {
@@ -104,8 +105,8 @@ func TestSource_Read_successResumeSnapshotNode(t *testing.T) {
 
 	firstRecord, err := source.Read(ctx)
 	is.NoErr(err)
-	is.Equal(firstRecord.Operation, sdk.OperationSnapshot)
-	is.Equal(firstRecord.Payload.After, sdk.RawData(rawFirstTestNode))
+	is.Equal(firstRecord.Operation, opencdc.OperationSnapshot)
+	is.Equal(firstRecord.Payload.After, opencdc.RawData(rawFirstTestNode))
 
 	is.NoErr(source.Teardown(ctx))
 
@@ -113,8 +114,8 @@ func TestSource_Read_successResumeSnapshotNode(t *testing.T) {
 
 	secondRecord, err := source.Read(ctx)
 	is.NoErr(err)
-	is.Equal(secondRecord.Operation, sdk.OperationSnapshot)
-	is.Equal(secondRecord.Payload.After, sdk.RawData(rawSecondTestNode))
+	is.Equal(secondRecord.Operation, opencdc.OperationSnapshot)
+	is.Equal(secondRecord.Payload.After, opencdc.RawData(rawSecondTestNode))
 
 	_, err = source.Read(ctx)
 	is.Equal(err, sdk.ErrBackoffRetry)
@@ -143,8 +144,8 @@ func TestSource_Read_successSnapshotPollingNode(t *testing.T) {
 
 	record, err := source.Read(ctx)
 	is.NoErr(err)
-	is.Equal(record.Operation, sdk.OperationSnapshot)
-	is.Equal(record.Payload.After, sdk.RawData(rawTestNode))
+	is.Equal(record.Operation, opencdc.OperationSnapshot)
+	is.Equal(record.Payload.After, opencdc.RawData(rawTestNode))
 
 	testNode = createTestElement(ctx, t, 2, sourceConfig)
 	rawTestNode, err = json.Marshal(testNode)
@@ -152,8 +153,8 @@ func TestSource_Read_successSnapshotPollingNode(t *testing.T) {
 
 	record, err = source.Read(ctx)
 	is.NoErr(err)
-	is.Equal(record.Operation, sdk.OperationCreate)
-	is.Equal(record.Payload.After, sdk.RawData(rawTestNode))
+	is.Equal(record.Operation, opencdc.OperationCreate)
+	is.Equal(record.Payload.After, opencdc.RawData(rawTestNode))
 }
 
 // prepareConfig prepares a config with the required fields.
