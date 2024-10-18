@@ -23,6 +23,7 @@ import (
 
 	"github.com/conduitio-labs/conduit-connector-neo4j/config"
 	"github.com/conduitio-labs/conduit-connector-neo4j/source/mock"
+	"github.com/conduitio/conduit-commons/opencdc"
 	sdk "github.com/conduitio/conduit-connector-sdk"
 	"github.com/matryer/is"
 	"go.uber.org/mock/gomock"
@@ -64,7 +65,7 @@ func TestSource_Configure(t *testing.T) {
 				ConfigKeyBatchSize:        "one",
 				ConfigKeySnapshot:         "true",
 			},
-			expectedError: "cannot parse 'batchSize' as int",
+			expectedError: "parse config: config invalid: error validating \"batchSize\": \"one\" value is not an integer: invalid parameter type",
 		},
 		{
 			name: "fail_invalid_snapshot",
@@ -76,7 +77,7 @@ func TestSource_Configure(t *testing.T) {
 				ConfigKeyBatchSize:        "1000",
 				ConfigKeySnapshot:         "yes",
 			},
-			expectedError: "cannot parse 'snapshot' as bool",
+			expectedError: "parse config: config invalid: error validating \"snapshot\": \"yes\" value is not a boolean: invalid parameter type",
 		},
 	}
 
@@ -102,17 +103,17 @@ func TestSource_Read_success(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	ctx := context.Background()
 
-	key := make(sdk.StructuredData)
+	key := make(opencdc.StructuredData)
 	key["id"] = 1
 
-	metadata := make(sdk.Metadata)
+	metadata := make(opencdc.Metadata)
 	metadata.SetCreatedAt(time.Time{})
 
-	record := sdk.Record{
-		Position: sdk.Position(`{"lastId": 1}`),
+	record := opencdc.Record{
+		Position: opencdc.Position(`{"lastId": 1}`),
 		Metadata: metadata,
 		Key:      key,
-		Payload: sdk.Change{
+		Payload: opencdc.Change{
 			After: key,
 		},
 	}
@@ -137,17 +138,17 @@ func TestSource_Read_successPolling(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	ctx := context.Background()
 
-	key := make(sdk.StructuredData)
+	key := make(opencdc.StructuredData)
 	key["id"] = 1
 
-	metadata := make(sdk.Metadata)
+	metadata := make(opencdc.Metadata)
 	metadata.SetCreatedAt(time.Time{})
 
-	record := sdk.Record{
-		Position: sdk.Position(`{"lastId": 1}`),
+	record := opencdc.Record{
+		Position: opencdc.Position(`{"lastId": 1}`),
 		Metadata: metadata,
 		Key:      key,
-		Payload: sdk.Change{
+		Payload: opencdc.Change{
 			After: key,
 		},
 	}
@@ -194,7 +195,7 @@ func TestSource_Read_failNext(t *testing.T) {
 
 	snapshotIt := mock.NewMockIterator(ctrl)
 	snapshotIt.EXPECT().HasNext(ctx).Return(true, nil)
-	snapshotIt.EXPECT().Next(ctx).Return(sdk.Record{}, errors.New("key is not exist"))
+	snapshotIt.EXPECT().Next(ctx).Return(opencdc.Record{}, errors.New("key is not exist"))
 
 	s := Source{snapshot: snapshotIt}
 

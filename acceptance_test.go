@@ -23,6 +23,7 @@ import (
 	"github.com/brianvoe/gofakeit"
 	"github.com/conduitio-labs/conduit-connector-neo4j/config"
 	"github.com/conduitio-labs/conduit-connector-neo4j/source"
+	"github.com/conduitio/conduit-commons/opencdc"
 	sdk "github.com/conduitio/conduit-connector-sdk"
 )
 
@@ -48,22 +49,30 @@ type driver struct {
 }
 
 // GenerateRecord overrides the [sdk.ConfigurableAcceptanceTestDriver] GenerateRecord method.
-func (d *driver) GenerateRecord(t *testing.T, operation sdk.Operation) sdk.Record {
+func (d *driver) GenerateRecord(t *testing.T, operation opencdc.Operation) opencdc.Record {
 	t.Helper()
 
 	atomic.AddInt64(&d.idCounter, 1)
 
-	return sdk.Record{
+	return opencdc.Record{
 		Operation: operation,
-		Key:       sdk.StructuredData{"id": float64(d.idCounter)},
-		Payload: sdk.Change{
-			After: sdk.RawData(fmt.Sprintf(`{"id":%v,"name":"%s"}`, float64(d.idCounter), gofakeit.Name())),
+		Key:       opencdc.StructuredData{"id": float64(d.idCounter)},
+		Payload: opencdc.Change{
+			After: opencdc.RawData(fmt.Sprintf(`{"id":%v,"name":"%s"}`, float64(d.idCounter), gofakeit.Name())),
 		},
 	}
 }
 
 func TestAcceptance(t *testing.T) {
-	cfg := map[string]string{
+	destConfig := map[string]string{
+		config.KeyURI:          testURI,
+		config.KeyEntityType:   string(config.EntityTypeNode),
+		config.KeyDatabase:     testDatabase,
+		config.KeyAuthUsername: testUsername,
+		config.KeyAuthPassword: testPassword,
+	}
+
+	srcConfig := map[string]string{
 		config.KeyURI:                    testURI,
 		config.KeyEntityType:             string(config.EntityTypeNode),
 		config.KeyDatabase:               testDatabase,
@@ -78,20 +87,15 @@ func TestAcceptance(t *testing.T) {
 		ConfigurableAcceptanceTestDriver: sdk.ConfigurableAcceptanceTestDriver{
 			Config: sdk.ConfigurableAcceptanceTestDriverConfig{
 				Connector:         Connector,
-				SourceConfig:      cfg,
-				DestinationConfig: cfg,
-				BeforeTest:        beforeTest(cfg),
-				Skip:              []string{`.*_Configure_RequiredParams`},
+				SourceConfig:      srcConfig,
+				DestinationConfig: destConfig,
+				BeforeTest: func(*testing.T) {
+					// before test set the config labels field to a unique name prefixed with the testLabelPrefix.
+					srcConfig[config.KeyEntityLabels] = fmt.Sprintf("%s_%d", testLabelPrefix, time.Now().UnixNano())
+					destConfig[config.KeyEntityLabels] = fmt.Sprintf("%s_%d", testLabelPrefix, time.Now().UnixNano())
+				},
+				Skip: []string{`.*_Configure_RequiredParams`},
 			},
 		},
 	})
-}
-
-// beforeTest set the config labels field to a unique name prefixed with the testLabelPrefix.
-func beforeTest(cfg map[string]string) func(*testing.T) {
-	return func(t *testing.T) {
-		t.Helper()
-
-		cfg[config.KeyEntityLabels] = fmt.Sprintf("%s_%d", testLabelPrefix, time.Now().UnixNano())
-	}
 }

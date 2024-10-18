@@ -17,7 +17,7 @@ package writer
 import "errors"
 
 var (
-	// ErrEmptyRawData occurs when trying to structurize empty [sdk.RawData].
+	// ErrEmptyRawData occurs when trying to structurize empty [opencdc.RawData].
 	ErrEmptyRawData = errors.New("empty raw data")
 	// ErrUnsupportedEntityType occurs when the entityType is unsupported by the [Writer].
 	ErrUnsupportedEntityType = errors.New("unsupported entity type")
