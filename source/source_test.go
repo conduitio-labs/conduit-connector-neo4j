@@ -65,7 +65,7 @@ func TestSource_Configure(t *testing.T) {
 				ConfigKeyBatchSize:        "one",
 				ConfigKeySnapshot:         "true",
 			},
-			expectedError: "cannot parse 'batchSize' as int",
+			expectedError: "parse config: config invalid: error validating \"batchSize\": \"one\" value is not an integer: invalid parameter type",
 		},
 		{
 			name: "fail_invalid_snapshot",
@@ -77,7 +77,7 @@ func TestSource_Configure(t *testing.T) {
 				ConfigKeyBatchSize:        "1000",
 				ConfigKeySnapshot:         "yes",
 			},
-			expectedError: "cannot parse 'snapshot' as bool",
+			expectedError: "parse config: config invalid: error validating \"snapshot\": \"yes\" value is not a boolean: invalid parameter type",
 		},
 	}
 

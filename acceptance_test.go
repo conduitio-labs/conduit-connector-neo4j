@@ -16,13 +16,13 @@ package neo4j
 
 import (
 	"fmt"
+	"github.com/conduitio-labs/conduit-connector-neo4j/source"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/brianvoe/gofakeit"
 	"github.com/conduitio-labs/conduit-connector-neo4j/config"
-	"github.com/conduitio-labs/conduit-connector-neo4j/source"
 	"github.com/conduitio/conduit-commons/opencdc"
 	sdk "github.com/conduitio/conduit-connector-sdk"
 )
@@ -64,7 +64,15 @@ func (d *driver) GenerateRecord(t *testing.T, operation opencdc.Operation) openc
 }
 
 func TestAcceptance(t *testing.T) {
-	cfg := map[string]string{
+	destConfig := map[string]string{
+		config.KeyURI:          testURI,
+		config.KeyEntityType:   string(config.EntityTypeNode),
+		config.KeyDatabase:     testDatabase,
+		config.KeyAuthUsername: testUsername,
+		config.KeyAuthPassword: testPassword,
+	}
+
+	srcConfig := map[string]string{
 		config.KeyURI:                    testURI,
 		config.KeyEntityType:             string(config.EntityTypeNode),
 		config.KeyDatabase:               testDatabase,
@@ -79,20 +87,15 @@ func TestAcceptance(t *testing.T) {
 		ConfigurableAcceptanceTestDriver: sdk.ConfigurableAcceptanceTestDriver{
 			Config: sdk.ConfigurableAcceptanceTestDriverConfig{
 				Connector:         Connector,
-				SourceConfig:      cfg,
-				DestinationConfig: cfg,
-				BeforeTest:        beforeTest(cfg),
-				Skip:              []string{`.*_Configure_RequiredParams`},
+				SourceConfig:      srcConfig,
+				DestinationConfig: destConfig,
+				BeforeTest: func(t *testing.T) {
+					// before test set the config labels field to a unique name prefixed with the testLabelPrefix.
+					srcConfig[config.KeyEntityLabels] = fmt.Sprintf("%s_%d", testLabelPrefix, time.Now().UnixNano())
+					destConfig[config.KeyEntityLabels] = fmt.Sprintf("%s_%d", testLabelPrefix, time.Now().UnixNano())
+				},
+				Skip: []string{`.*_Configure_RequiredParams`},
 			},
 		},
 	})
-}
-
-// beforeTest set the config labels field to a unique name prefixed with the testLabelPrefix.
-func beforeTest(cfg map[string]string) func(*testing.T) {
-	return func(t *testing.T) {
-		t.Helper()
-
-		cfg[config.KeyEntityLabels] = fmt.Sprintf("%s_%d", testLabelPrefix, time.Now().UnixNano())
-	}
 }
