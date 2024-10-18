@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:generate mockgen -package mock -destination mock/source.go . Iterator
+
 // Package source implements the source logic of the Neo4j connector.
 package source
 
@@ -57,7 +59,7 @@ func (s *Source) Parameters() config.Parameters {
 }
 
 // Configure parses and initializes the [Source] config.
-func (s *Source) Configure(_ context.Context, raw config.Config) error {
+func (s *Source) Configure(ctx context.Context, raw config.Config) error {
 	if err := sdk.Util.ParseConfig(ctx, raw, &s.config, New().Parameters()); err != nil {
 		return fmt.Errorf("parse config: %w", err)
 	}

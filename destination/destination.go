@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:generate mockgen -package mock -destination mock/destination.go . Writer
+
 // Package destination implements the destination logic of the Neo4j connector.
 package destination
 
@@ -51,7 +53,7 @@ func (d *Destination) Parameters() config.Parameters {
 }
 
 // Configure parses and initializes the [Destination] config.
-func (d *Destination) Configure(_ context.Context, raw config.Config) error {
+func (d *Destination) Configure(ctx context.Context, raw config.Config) error {
 	if err := sdk.Util.ParseConfig(ctx, raw, &d.config, New().Parameters()); err != nil {
 		return fmt.Errorf("parse config: %w", err)
 	}
