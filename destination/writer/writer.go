@@ -222,7 +222,12 @@ func (w *Writer) createNode(ctx context.Context, session neo4j.SessionWithContex
 	return nil
 }
 
-func (w *Writer) createRelationship(ctx context.Context, session neo4j.SessionWithContext, record opencdc.Record) error {
+//nolint:funlen // maybe refactor at some point
+func (w *Writer) createRelationship(
+	ctx context.Context,
+	session neo4j.SessionWithContext,
+	record opencdc.Record,
+) error {
 	properties, err := w.structurizeRawData(record.Payload.After.Bytes())
 	if err != nil {
 		return fmt.Errorf("structurize record payload: %w", err)
