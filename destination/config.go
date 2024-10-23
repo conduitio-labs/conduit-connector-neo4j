@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:generate paramgen -output=destination_params.go Config
+
 package destination
 
 import "github.com/conduitio-labs/conduit-connector-neo4j/config"
