@@ -17,7 +17,7 @@ package iterator
 import "errors"
 
 var (
-	// ErrNilSDKPosition occurs when trying to parse a nil [sdk.Position].
+	// ErrNilSDKPosition occurs when trying to parse a nil [opencdc.Position].
 	// It's just a sentinel error for the [parsePosition] function.
 	ErrNilSDKPosition = errors.New("nil sdk position")
 

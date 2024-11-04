@@ -16,18 +16,8 @@ lint:
 	golangci-lint run
 
 .PHONY: generate
-generate: mockgen paramgen
+generate:
 	go generate ./...
-
-.PHONY: mockgen
-mockgen:
-	mockgen -package mock -source destination/destination.go -destination destination/mock/destination.go
-	mockgen -package mock -source source/source.go -destination source/mock/source.go
-
-.PHONY: paramgen
-paramgen:
-	paramgen -path=./destination -output=destination_params.go Config
-	paramgen -path=./source -output=source_params.go Config
 
 .PHONY: install-tools
 install-tools:
