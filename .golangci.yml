@@ -25,6 +25,7 @@ linters:
   disable-all: true
   enable:
     - bodyclose
+    - copyloopvar
     # depguard
     - dogsled
     - durationcheck
@@ -32,7 +33,6 @@ linters:
     - errname
     - errorlint
     - exhaustive
-    - exportloopref
     - forbidigo
     - forcetypeassert
     - funlen
@@ -46,7 +46,6 @@ linters:
     - goheader
     - goimports
     - revive
-    - gomnd
     - gomoddirectives
     - gomodguard
     - goprintffuncname
@@ -56,6 +55,7 @@ linters:
     - ineffassign
     - importas
     - lll
+    - mnd
     - misspell
     - makezero
     - nakedret
