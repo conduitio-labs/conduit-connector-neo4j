@@ -24,6 +24,7 @@ import (
 
 	"github.com/conduitio-labs/conduit-connector-neo4j/config"
 	"github.com/conduitio-labs/conduit-connector-neo4j/schema"
+	"github.com/conduitio/conduit-commons/opencdc"
 	sdk "github.com/conduitio/conduit-connector-sdk"
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j/db"
@@ -182,10 +183,10 @@ func (s *Snapshot) HasNext(ctx context.Context) (bool, error) {
 }
 
 // Next returns the next available record.
-func (s *Snapshot) Next(ctx context.Context) (sdk.Record, error) {
+func (s *Snapshot) Next(ctx context.Context) (opencdc.Record, error) {
 	select {
 	case <-ctx.Done():
-		return sdk.Record{}, ctx.Err() //nolint:wrapcheck // there's no much to wrap here
+		return opencdc.Record{}, ctx.Err() //nolint:wrapcheck // there's no much to wrap here
 
 	case record := <-s.records:
 		// if the snapshot is polling new items,
@@ -204,44 +205,42 @@ func (s *Snapshot) Next(ctx context.Context) (sdk.Record, error) {
 
 		sdkPosition, err := position.MarshalSDKPosition()
 		if err != nil {
-			return sdk.Record{}, fmt.Errorf("marshal sdk position: %w", err)
+			return opencdc.Record{}, fmt.Errorf("marshal sdk position: %w", err)
 		}
 
 		s.position = position
 
 		// construct the key
-		key := make(sdk.StructuredData)
+		key := make(opencdc.StructuredData)
 		for _, keyProperty := range s.keyProperties {
 			keyPropertyValue, ok := record[keyProperty]
 			if !ok {
-				return sdk.Record{}, fmt.Errorf("payload doesn't contain %q property", keyProperty)
+				return opencdc.Record{}, fmt.Errorf("payload doesn't contain %q property", keyProperty)
 			}
 
 			key[keyProperty] = keyPropertyValue
 		}
 
 		// construct the metadata
-		metadata := sdk.Metadata{metadataEntityLabelsField: s.entityLabels}
+		metadata := opencdc.Metadata{metadataEntityLabelsField: s.entityLabels}
 		metadata.SetCreatedAt(time.Now())
 
 		// prepare the payload
 		recordBytes, err := json.Marshal(record)
 		if err != nil {
-			return sdk.Record{}, fmt.Errorf("marshal record: %w", err)
+			return opencdc.Record{}, fmt.Errorf("marshal record: %w", err)
 		}
 
 		if s.polling {
-			return sdk.Util.Source.NewRecordCreate(sdkPosition, metadata, key, sdk.RawData(recordBytes)), nil
+			return sdk.Util.Source.NewRecordCreate(sdkPosition, metadata, key, opencdc.RawData(recordBytes)), nil
 		}
 
-		return sdk.Util.Source.NewRecordSnapshot(sdkPosition, metadata, key, sdk.RawData(recordBytes)), nil
+		return sdk.Util.Source.NewRecordSnapshot(sdkPosition, metadata, key, opencdc.RawData(recordBytes)), nil
 	}
 }
 
 // loadBatch finds a batch of elements in a Neo4j database,
 // based on labels and ordering property.
-//
-//nolint:funlen // the function is pretty straightforward
 func (s *Snapshot) loadBatch(ctx context.Context) error {
 	session := s.driver.NewSession(ctx, neo4j.SessionConfig{
 		DatabaseName: s.databaseName,

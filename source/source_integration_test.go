@@ -23,6 +23,7 @@ import (
 
 	"github.com/brianvoe/gofakeit"
 	"github.com/conduitio-labs/conduit-connector-neo4j/config"
+	"github.com/conduitio/conduit-commons/opencdc"
 	sdk "github.com/conduitio/conduit-connector-sdk"
 	"github.com/matryer/is"
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
@@ -54,7 +55,7 @@ func TestSource_Read_successSnapshotNode(t *testing.T) {
 	// prepare a config, configure and open a new source
 	sourceConfig := prepareConfig(t, config.EntityTypeNode)
 
-	source := New()
+	source := NewSource()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -72,8 +73,8 @@ func TestSource_Read_successSnapshotNode(t *testing.T) {
 
 	record, err := source.Read(ctx)
 	is.NoErr(err)
-	is.Equal(record.Operation, sdk.OperationSnapshot)
-	is.Equal(record.Payload.After, sdk.RawData(rawTestNode))
+	is.Equal(record.Operation, opencdc.OperationSnapshot)
+	is.Equal(record.Payload.After, opencdc.RawData(rawTestNode))
 }
 
 func TestSource_Read_successResumeSnapshotNode(t *testing.T) {
@@ -82,7 +83,7 @@ func TestSource_Read_successResumeSnapshotNode(t *testing.T) {
 	// prepare a config, configure and open a new source
 	sourceConfig := prepareConfig(t, config.EntityTypeNode)
 
-	source := New()
+	source := NewSource()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -104,8 +105,8 @@ func TestSource_Read_successResumeSnapshotNode(t *testing.T) {
 
 	firstRecord, err := source.Read(ctx)
 	is.NoErr(err)
-	is.Equal(firstRecord.Operation, sdk.OperationSnapshot)
-	is.Equal(firstRecord.Payload.After, sdk.RawData(rawFirstTestNode))
+	is.Equal(firstRecord.Operation, opencdc.OperationSnapshot)
+	is.Equal(firstRecord.Payload.After, opencdc.RawData(rawFirstTestNode))
 
 	is.NoErr(source.Teardown(ctx))
 
@@ -113,8 +114,8 @@ func TestSource_Read_successResumeSnapshotNode(t *testing.T) {
 
 	secondRecord, err := source.Read(ctx)
 	is.NoErr(err)
-	is.Equal(secondRecord.Operation, sdk.OperationSnapshot)
-	is.Equal(secondRecord.Payload.After, sdk.RawData(rawSecondTestNode))
+	is.Equal(secondRecord.Operation, opencdc.OperationSnapshot)
+	is.Equal(secondRecord.Payload.After, opencdc.RawData(rawSecondTestNode))
 
 	_, err = source.Read(ctx)
 	is.Equal(err, sdk.ErrBackoffRetry)
@@ -126,7 +127,7 @@ func TestSource_Read_successSnapshotPollingNode(t *testing.T) {
 	// prepare a config, configure and open a new source
 	sourceConfig := prepareConfig(t, config.EntityTypeNode)
 
-	source := New()
+	source := NewSource()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -143,8 +144,8 @@ func TestSource_Read_successSnapshotPollingNode(t *testing.T) {
 
 	record, err := source.Read(ctx)
 	is.NoErr(err)
-	is.Equal(record.Operation, sdk.OperationSnapshot)
-	is.Equal(record.Payload.After, sdk.RawData(rawTestNode))
+	is.Equal(record.Operation, opencdc.OperationSnapshot)
+	is.Equal(record.Payload.After, opencdc.RawData(rawTestNode))
 
 	testNode = createTestElement(ctx, t, 2, sourceConfig)
 	rawTestNode, err = json.Marshal(testNode)
@@ -152,8 +153,8 @@ func TestSource_Read_successSnapshotPollingNode(t *testing.T) {
 
 	record, err = source.Read(ctx)
 	is.NoErr(err)
-	is.Equal(record.Operation, sdk.OperationCreate)
-	is.Equal(record.Payload.After, sdk.RawData(rawTestNode))
+	is.Equal(record.Operation, opencdc.OperationCreate)
+	is.Equal(record.Payload.After, opencdc.RawData(rawTestNode))
 }
 
 // prepareConfig prepares a config with the required fields.
@@ -161,15 +162,15 @@ func prepareConfig(t *testing.T, entityType config.EntityType) map[string]string
 	t.Helper()
 
 	return map[string]string{
-		config.KeyURI:             testURI,
-		config.KeyEntityType:      string(entityType),
-		config.KeyEntityLabels:    fmt.Sprintf("%s_%d", testLabelPrefix, time.Now().UnixNano()),
-		config.KeyDatabase:        testDatabase,
-		config.KeyAuthUsername:    testUsername,
-		config.KeyAuthPassword:    testPassword,
-		ConfigKeyOrderingProperty: testOrderingProperty,
-		ConfigKeyBatchSize:        testBatchSize,
-		ConfigKeySnapshot:         testSnapshot,
+		ConfigUri:              testURI,
+		ConfigEntityType:       string(entityType),
+		ConfigEntityLabels:     fmt.Sprintf("%s_%d", testLabelPrefix, time.Now().UnixNano()),
+		ConfigDatabase:         testDatabase,
+		ConfigAuthUsername:     testUsername,
+		ConfigAuthPassword:     testPassword,
+		ConfigOrderingProperty: testOrderingProperty,
+		ConfigBatchSize:        testBatchSize,
+		ConfigSnapshot:         testSnapshot,
 	}
 }
 
@@ -179,18 +180,18 @@ func createTestElement(ctx context.Context, t *testing.T, id float64, cfg map[st
 
 	is := is.New(t)
 
-	neo4jDriver, err := neo4j.NewDriverWithContext(cfg[config.KeyURI], testAuthToken)
+	neo4jDriver, err := neo4j.NewDriverWithContext(cfg[ConfigUri], testAuthToken)
 	is.NoErr(err)
 	t.Cleanup(func() {
 		is.NoErr(neo4jDriver.Close(context.Background()))
 	})
 
 	session := neo4jDriver.NewSession(ctx, neo4j.SessionConfig{
-		DatabaseName: cfg[config.KeyDatabase],
+		DatabaseName: cfg[ConfigDatabase],
 	})
 
 	output, err := neo4j.ExecuteWrite(ctx, session, func(tx neo4j.ManagedTransaction) (map[string]any, error) {
-		cypherQuery := fmt.Sprintf(testCreateNodeQueryTemplate, cfg[config.KeyEntityLabels])
+		cypherQuery := fmt.Sprintf(testCreateNodeQueryTemplate, cfg[ConfigEntityLabels])
 		result, txErr := tx.Run(ctx, cypherQuery, map[string]any{"id": id, "name": gofakeit.Name()})
 		if txErr != nil {
 			return nil, fmt.Errorf("run tx: %w", txErr)

@@ -21,7 +21,7 @@ import (
 	"testing"
 
 	"github.com/conduitio-labs/conduit-connector-neo4j/config"
-	sdk "github.com/conduitio/conduit-connector-sdk"
+	"github.com/conduitio/conduit-commons/opencdc"
 	"github.com/matryer/is"
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 )
@@ -46,7 +46,7 @@ func TestDestination_Write(t *testing.T) {
 
 	// create a Destination,
 	// configure it with the prepared config, and open it
-	destination := New()
+	destination := NewDestination()
 	is.NoErr(destination.Configure(ctx, cfg))
 	is.NoErr(destination.Open(ctx))
 	// teardown the destination
@@ -60,9 +60,9 @@ func TestDestination_Write(t *testing.T) {
 
 	// initialize a slice with test records
 	// that contains snapshot and create operations
-	records := []sdk.Record{
-		{Operation: sdk.OperationSnapshot, Payload: sdk.Change{After: sdk.StructuredData(snapshotRecordPayload)}},
-		{Operation: sdk.OperationCreate, Payload: sdk.Change{After: sdk.StructuredData(createRecordPayload)}},
+	records := []opencdc.Record{
+		{Operation: opencdc.OperationSnapshot, Payload: opencdc.Change{After: opencdc.StructuredData(snapshotRecordPayload)}},
+		{Operation: opencdc.OperationCreate, Payload: opencdc.Change{After: opencdc.StructuredData(createRecordPayload)}},
 	}
 
 	// write the test records, check if there's no error,
@@ -72,7 +72,7 @@ func TestDestination_Write(t *testing.T) {
 	is.Equal(n, len(records))
 
 	driver, err := neo4j.NewDriverWithContext(
-		cfg[config.KeyURI], neo4j.BasicAuth(cfg[config.KeyAuthUsername], cfg[config.KeyAuthPassword], ""),
+		cfg[ConfigUri], neo4j.BasicAuth(cfg[ConfigAuthUsername], cfg[ConfigAuthPassword], ""),
 	)
 	is.NoErr(err)
 	t.Cleanup(func() {
@@ -94,14 +94,14 @@ func TestDestination_Write(t *testing.T) {
 		nameFieldName: "NewBob",
 	}
 
-	updateRecord := sdk.Record{
-		Operation: sdk.OperationUpdate,
-		Key:       sdk.StructuredData{idFieldName: updateRecordPayload[idFieldName]},
-		Payload:   sdk.Change{After: sdk.StructuredData(updateRecordPayload)},
+	updateRecord := opencdc.Record{
+		Operation: opencdc.OperationUpdate,
+		Key:       opencdc.StructuredData{idFieldName: updateRecordPayload[idFieldName]},
+		Payload:   opencdc.Change{After: opencdc.StructuredData(updateRecordPayload)},
 	}
 
 	// write the update record
-	n, err = destination.Write(ctx, []sdk.Record{updateRecord})
+	n, err = destination.Write(ctx, []opencdc.Record{updateRecord})
 	is.NoErr(err)
 	is.Equal(n, 1)
 
@@ -111,13 +111,13 @@ func TestDestination_Write(t *testing.T) {
 	is.Equal(neo4jRecord, updateRecordPayload)
 
 	// create a record with the delete operation
-	deleteRecord := sdk.Record{
-		Operation: sdk.OperationDelete,
-		Key:       sdk.StructuredData{idFieldName: updateRecordPayload[idFieldName]},
+	deleteRecord := opencdc.Record{
+		Operation: opencdc.OperationDelete,
+		Key:       opencdc.StructuredData{idFieldName: updateRecordPayload[idFieldName]},
 	}
 
 	// write the delete record
-	n, err = destination.Write(ctx, []sdk.Record{deleteRecord})
+	n, err = destination.Write(ctx, []opencdc.Record{deleteRecord})
 	is.NoErr(err)
 	is.Equal(n, 1)
 
@@ -134,11 +134,11 @@ func prepareConfig(t *testing.T, entityType config.EntityType) map[string]string
 	t.Helper()
 
 	return map[string]string{
-		config.KeyURI:          testURI,
-		config.KeyEntityType:   string(entityType),
-		config.KeyEntityLabels: testLabel,
-		config.KeyAuthUsername: testUsername,
-		config.KeyAuthPassword: testPassword,
+		ConfigUri:          testURI,
+		ConfigEntityType:   string(entityType),
+		ConfigEntityLabels: testLabel,
+		ConfigAuthUsername: testUsername,
+		ConfigAuthPassword: testPassword,
 	}
 }
 

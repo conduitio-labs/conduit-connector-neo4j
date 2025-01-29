@@ -23,6 +23,7 @@ import (
 
 	"github.com/conduitio-labs/conduit-connector-neo4j/config"
 	"github.com/conduitio-labs/conduit-connector-neo4j/schema"
+	"github.com/conduitio/conduit-commons/opencdc"
 	sdk "github.com/conduitio/conduit-connector-sdk"
 	"github.com/mitchellh/mapstructure"
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
@@ -78,7 +79,7 @@ func New(params Params) *Writer {
 }
 
 // Write writes a record to the destination.
-func (w *Writer) Write(ctx context.Context, record sdk.Record) error {
+func (w *Writer) Write(ctx context.Context, record opencdc.Record) error {
 	err := sdk.Util.Destination.Route(ctx, record,
 		w.handleCreate,
 		w.handleUpdate,
@@ -92,7 +93,7 @@ func (w *Writer) Write(ctx context.Context, record sdk.Record) error {
 	return nil
 }
 
-func (w *Writer) handleCreate(ctx context.Context, record sdk.Record) error {
+func (w *Writer) handleCreate(ctx context.Context, record opencdc.Record) error {
 	session := w.driver.NewSession(ctx, neo4j.SessionConfig{
 		DatabaseName: w.databaseName,
 	})
@@ -111,7 +112,7 @@ func (w *Writer) handleCreate(ctx context.Context, record sdk.Record) error {
 	}
 }
 
-func (w *Writer) handleUpdate(ctx context.Context, record sdk.Record) error {
+func (w *Writer) handleUpdate(ctx context.Context, record opencdc.Record) error {
 	session := w.driver.NewSession(ctx, neo4j.SessionConfig{
 		DatabaseName: w.databaseName,
 	})
@@ -167,7 +168,7 @@ func (w *Writer) handleUpdate(ctx context.Context, record sdk.Record) error {
 	return nil
 }
 
-func (w *Writer) handleDelete(ctx context.Context, record sdk.Record) error {
+func (w *Writer) handleDelete(ctx context.Context, record opencdc.Record) error {
 	session := w.driver.NewSession(ctx, neo4j.SessionConfig{
 		DatabaseName: w.databaseName,
 	})
@@ -199,7 +200,7 @@ func (w *Writer) handleDelete(ctx context.Context, record sdk.Record) error {
 	return nil
 }
 
-func (w *Writer) createNode(ctx context.Context, session neo4j.SessionWithContext, record sdk.Record) error {
+func (w *Writer) createNode(ctx context.Context, session neo4j.SessionWithContext, record opencdc.Record) error {
 	properties, err := w.structurizeRawData(record.Payload.After.Bytes())
 	if err != nil {
 		return fmt.Errorf("structurize record payload: %w", err)
@@ -221,7 +222,9 @@ func (w *Writer) createNode(ctx context.Context, session neo4j.SessionWithContex
 	return nil
 }
 
-func (w *Writer) createRelationship(ctx context.Context, session neo4j.SessionWithContext, record sdk.Record) error {
+func (w *Writer) createRelationship(ctx context.Context, session neo4j.SessionWithContext,
+	record opencdc.Record,
+) error {
 	properties, err := w.structurizeRawData(record.Payload.After.Bytes())
 	if err != nil {
 		return fmt.Errorf("structurize record payload: %w", err)
@@ -318,9 +321,9 @@ func (w *Writer) sourceTargetNodesFromProperties(properties map[string]any) (*sc
 	return sourceNode, targetNode, nil
 }
 
-// structurizeRawData tries to unmarshal the [sdk.RawData]
-// and if the process fails or the [sdk.RawData] is empty the method returns an error.
-func (w *Writer) structurizeRawData(rawData sdk.RawData) (map[string]any, error) {
+// structurizeRawData tries to unmarshal the [opencdc.RawData]
+// and if the process fails or the [opencdc.RawData] is empty the method returns an error.
+func (w *Writer) structurizeRawData(rawData opencdc.RawData) (map[string]any, error) {
 	if rawData == nil || len(rawData.Bytes()) == 0 {
 		return nil, ErrEmptyRawData
 	}
