@@ -17,23 +17,6 @@ package config
 
 import "github.com/neo4j/neo4j-go-driver/v5/neo4j"
 
-const (
-	// KeyURI is a config field name for a connection URI.
-	KeyURI = "uri"
-	// KeyEntityType is a config field name for a entity type.
-	KeyEntityType = "entityType"
-	// KeyEntityLabels is a config field name for entity labels.
-	KeyEntityLabels = "entityLabels"
-	// KeyDatabase is a config field name for a database.
-	KeyDatabase = "database"
-	// KeyAuthUsername is a config field name for a basic auth username.
-	KeyAuthUsername = "auth.username"
-	// KeyAuthPassword is a config field name for a basic auth password.
-	KeyAuthPassword = "auth.password"
-	// KeyAuthRealm is a config field name for a basic auth realm.
-	KeyAuthRealm = "auth.realm"
-)
-
 // EntityType defines a Neo4j entity type.
 type EntityType string
 

@@ -12,20 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//go:generate paramgen -output=paramgen.go Config
+
 package source
 
 import "github.com/conduitio-labs/conduit-connector-neo4j/config"
-
-const (
-	// ConfigKeyOrderingProperty is a config name for a orderingProperty field.
-	ConfigKeyOrderingProperty = "orderingProperty"
-	// ConfigKeyKeyProperties is a config name for a keyProperties field.
-	ConfigKeyKeyProperties = "keyProperties"
-	// ConfigKeyBatchSize is a config name for a batch size.
-	ConfigKeyBatchSize = "batchSize"
-	// ConfigKeySnapshot is a config name for a snapshot field.
-	ConfigKeySnapshot = "snapshot"
-)
 
 // Config holds configurable values specific to source.
 type Config struct {
@@ -41,4 +32,15 @@ type Config struct {
 	// Determines whether or not the connector will take a snapshot
 	// of all nodes or relationships before starting polling mode.
 	Snapshot bool `json:"snapshot" default:"true"`
+}
+
+// Init initializes the Config with desired values.
+func (c Config) Init() Config {
+	// if the keyProperties is empty,
+	// we'll use the orderingProperty as a record key
+	if len(c.KeyProperties) == 0 {
+		c.KeyProperties = []string{c.OrderingProperty}
+	}
+
+	return c
 }

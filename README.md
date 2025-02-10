@@ -94,3 +94,6 @@ The `sourceNode` and `targetNode` are objects that have the following fields:
 ### Key handling
 
 The connector supports composite keys and expects that the `record.Key` is structured when updating and deleting documents.
+
+
+![scarf pixel](https://static.scarf.sh/a.png?x-pxid=34c5d9c6-5f6f-484e-af55-c4ef60fe6a26)
