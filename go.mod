@@ -8,7 +8,7 @@ require (
 	github.com/conduitio/conduit-connector-sdk v0.12.0
 	github.com/matryer/is v1.4.1
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/neo4j/neo4j-go-driver/v5 v5.28.0
+	github.com/neo4j/neo4j-go-driver/v5 v5.28.1
 	go.uber.org/mock v0.5.2
 )
 
